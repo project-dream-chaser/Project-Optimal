@@ -4,13 +4,25 @@ import streamlit as st
 
 def get_market_assumptions():
     """
-    Get default market assumptions if none are stored in session state.
+    Get market assumptions from file if it exists, otherwise create defaults.
     
     Returns:
     --------
     dict
         Market assumptions for both short-term and long-term views
     """
+    import json
+    import os
+    
+    # Check if market assumptions file exists
+    if os.path.exists('data/market_assumptions.json'):
+        try:
+            with open('data/market_assumptions.json', 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            st.error(f"Error loading market assumptions: {e}")
+            # If there's an error, fall back to defaults
+            pass
     asset_classes = [
         'Global Equity',
         'Core Bond',
@@ -87,9 +99,11 @@ def get_market_assumptions():
     }
     
     sub_asset_class_volatilities = {
-        'US Large Cap': 0.17,
+        'US Value': 0.17,
+        'US Quality': 0.16,
         'US Small Cap': 0.21,
         'International Developed': 0.18,
+        'International Developed Small': 0.20,
         'Emerging Markets': 0.23,
         'US Treasuries': 0.04,
         'TIPS': 0.045,
@@ -141,14 +155,25 @@ def get_market_assumptions():
 
 def update_market_assumptions(new_assumptions):
     """
-    Update market assumptions in the session state.
+    Update market assumptions in the session state and save to file.
     
     Parameters:
     -----------
     new_assumptions : dict
         New market assumptions to store
     """
+    import json
+    import os
+    
+    # Update session state
     st.session_state.market_assumptions = new_assumptions
+    
+    # Ensure data directory exists
+    os.makedirs('data', exist_ok=True)
+    
+    # Save to file
+    with open('data/market_assumptions.json', 'w') as f:
+        json.dump(new_assumptions, f, indent=4)
 
 def get_asset_returns_covariance(market_assumptions, view='long_term'):
     """
