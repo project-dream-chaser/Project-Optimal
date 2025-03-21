@@ -37,7 +37,7 @@ def get_market_assumptions():
         'Core Bond': ['1-5 Year Investment Grade', 'Absolute Return', 'Total Return'],
         'Short-Term Bond': ['Short Duration Treasuries', 'Short Duration Credit'],
         'Global Credit': ['US Investment Grade', 'US High Yield', 'Emerging Market Debt'],
-        'Real Assets': ['REITs', 'Commodities', 'Infrastructure', 'TIPS', 'Resources', 'Natural Resources'],
+        'Real Assets': ['REITs', 'Commodities', 'Infrastructure', 'TIPS', 'Natural Resources'],
         'Liquid Alternatives': ['Market Neutral', 'Managed Futures', 'Global Macro']
     }
     
@@ -94,7 +94,6 @@ def get_market_assumptions():
         'Commodities': 0.043,
         'Infrastructure': 0.058,
         'TIPS': 0.027,
-        'Resources': 0.055,
         'Natural Resources': 0.053,
         'Market Neutral': 0.035,
         'Managed Futures': 0.043,
@@ -121,7 +120,6 @@ def get_market_assumptions():
         'Commodities': 0.19,
         'Infrastructure': 0.12,
         'TIPS': 0.05,
-        'Resources': 0.17,
         'Natural Resources': 0.16,
         'Market Neutral': 0.06,
         'Managed Futures': 0.12,
