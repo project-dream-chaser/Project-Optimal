@@ -177,7 +177,9 @@ class Plan:
         Glidepath allocation over time if optimized
     """
     
-    def __init__(self, client_id, name, goals=None, cash_flows=None, initial_portfolio=0, asset_allocation=None, glidepath=None):
+    def __init__(self, client_id, name, goals=None, cash_flows=None, initial_portfolio=0, 
+                 asset_allocation=None, allocation_constraints=None, risk_aversion=3.0, 
+                 mean_reversion_speed=0.15, glidepath=None):
         """
         Initialize a Plan object.
         
@@ -195,6 +197,12 @@ class Plan:
             Starting portfolio value
         asset_allocation : array-like
             Initial asset allocation weights
+        allocation_constraints : dict
+            Dictionary mapping asset class names to min/max constraints
+        risk_aversion : float
+            Risk aversion parameter (higher = more conservative)
+        mean_reversion_speed : float
+            Speed at which returns revert to long-term means
         glidepath : array-like or None
             Glidepath allocation over time if optimized
         """
@@ -204,6 +212,9 @@ class Plan:
         self.cash_flows = cash_flows or []
         self.initial_portfolio = initial_portfolio
         self.asset_allocation = asset_allocation or [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.allocation_constraints = allocation_constraints or {}
+        self.risk_aversion = risk_aversion
+        self.mean_reversion_speed = mean_reversion_speed
         self.glidepath = glidepath
     
     def add_goal(self, goal):
@@ -244,6 +255,9 @@ class Plan:
             'cash_flows': [cf.to_dict() for cf in self.cash_flows],
             'initial_portfolio': self.initial_portfolio,
             'asset_allocation': self.asset_allocation,
+            'allocation_constraints': self.allocation_constraints,
+            'risk_aversion': self.risk_aversion,
+            'mean_reversion_speed': self.mean_reversion_speed,
             'glidepath': self.glidepath.tolist() if self.glidepath is not None else None
         }
     
@@ -272,5 +286,8 @@ class Plan:
             cash_flows=cash_flows,
             initial_portfolio=data.get('initial_portfolio', 0),
             asset_allocation=data.get('asset_allocation'),
+            allocation_constraints=data.get('allocation_constraints', {}),
+            risk_aversion=data.get('risk_aversion', 3.0),
+            mean_reversion_speed=data.get('mean_reversion_speed', 0.15),
             glidepath=data.get('glidepath')
         )

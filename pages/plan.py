@@ -294,6 +294,112 @@ def show_goals_cash_flows(client):
     ax.set_title('Current Asset Allocation')
     st.pyplot(fig)
     
+    # Asset Allocation Constraints
+    st.subheader("Asset Allocation Constraints")
+    
+    # Initialize allocation constraints if not in the plan
+    if not hasattr(plan, 'allocation_constraints') or not plan.allocation_constraints:
+        plan.allocation_constraints = {}
+        # Default constraints for each asset class
+        for asset_class in asset_classes:
+            plan.allocation_constraints[asset_class] = {
+                'min': 5.0,
+                'max': 60.0
+            }
+    
+    # Create a DataFrame for min/max constraints
+    constraints_data = []
+    for asset_class in asset_classes:
+        if asset_class in plan.allocation_constraints:
+            constraints = plan.allocation_constraints[asset_class]
+            min_weight = constraints['min']
+            max_weight = constraints['max']
+        else:
+            min_weight = 5.0
+            max_weight = 60.0
+            plan.allocation_constraints[asset_class] = {
+                'min': min_weight,
+                'max': max_weight
+            }
+        
+        constraints_data.append({
+            "Asset Class": asset_class,
+            "Minimum (%)": min_weight,
+            "Maximum (%)": max_weight
+        })
+    
+    # Display editable constraints table
+    edited_constraints = st.data_editor(
+        pd.DataFrame(constraints_data),
+        column_config={
+            "Asset Class": st.column_config.TextColumn("Asset Class", disabled=True),
+            "Minimum (%)": st.column_config.NumberColumn(
+                "Minimum (%)",
+                format="%.1f",
+                min_value=0.0,
+                max_value=100.0,
+                step=1.0
+            ),
+            "Maximum (%)": st.column_config.NumberColumn(
+                "Maximum (%)",
+                format="%.1f",
+                min_value=0.0,
+                max_value=100.0,
+                step=1.0
+            )
+        },
+        use_container_width=True,
+        hide_index=True,
+        key="allocation_constraints_editor"
+    )
+    
+    # Update constraints if changed
+    if st.button("Save Allocation Constraints"):
+        for row in edited_constraints.to_dict("records"):
+            asset_class = row["Asset Class"]
+            plan.allocation_constraints[asset_class] = {
+                'min': row["Minimum (%)"],
+                'max': row["Maximum (%)"]
+            }
+        save_plan(plan)
+        st.success("Allocation constraints saved successfully!")
+    
+    # Risk Parameters
+    st.subheader("Risk Parameters")
+    
+    # Initialize risk parameters if not in the plan
+    if not hasattr(plan, 'risk_aversion'):
+        plan.risk_aversion = 3.0
+    
+    if not hasattr(plan, 'mean_reversion_speed'):
+        plan.mean_reversion_speed = 0.15
+    
+    # Risk aversion parameter
+    risk_aversion = st.slider(
+        "Risk Aversion Parameter",
+        min_value=1.0,
+        max_value=10.0,
+        value=plan.risk_aversion,
+        step=0.1,
+        help="Higher values lead to more conservative allocations"
+    )
+    
+    # Mean reversion parameter
+    mean_reversion_speed = st.slider(
+        "Mean Reversion Speed",
+        min_value=0.0,
+        max_value=0.5,
+        value=plan.mean_reversion_speed,
+        step=0.01,
+        help="Speed at which returns revert to long-term means (0 = no mean reversion, 0.5 = fast mean reversion)"
+    )
+    
+    # Update risk parameters if changed
+    if risk_aversion != plan.risk_aversion or mean_reversion_speed != plan.mean_reversion_speed:
+        plan.risk_aversion = risk_aversion
+        plan.mean_reversion_speed = mean_reversion_speed
+        save_plan(plan)
+    
     # Financial Goals
     st.subheader("Financial Goals")
     
