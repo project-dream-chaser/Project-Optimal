@@ -34,7 +34,7 @@ def get_market_assumptions():
     
     sub_asset_classes = {
         'Global Equity': ['US Value', 'US Quality', 'US Small Cap', 'International Developed', 'International Developed Small', 'Emerging Markets'],
-        'Core Bond': ['1-5 Year Investment Grade', 'Absolute Return', 'Total Return'],
+        'Core Bond': ['1-5 Year Investment Grade', 'Absolute Return'],
         'Short-Term Bond': ['Short Duration Treasuries', 'Short Duration Credit'],
         'Global Credit': ['Quality High Yield', 'High Yield', 'Bank Loans', 'Securitized Credit', 'Emerging Market Debt'],
         'Real Assets': ['REITs', 'Commodities', 'Infrastructure', 'TIPS', 'Natural Resources'],
