@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from models.plan import CashFlow, Goal
 from utils.market_assumptions import get_asset_returns_covariance
 
-def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations=1000, max_age=95):
+def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations=1000, max_age=None):
     """
     Run a Monte Carlo simulation for a client's financial plan.
     
@@ -18,8 +18,8 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
         Market assumptions including expected returns, volatility, and correlations
     num_simulations : int
         Number of simulations to run
-    max_age : int
-        Maximum age to simulate to
+    max_age : int, optional
+        Maximum age to simulate to. If None, uses client's longevity_age
         
     Returns:
     --------
@@ -30,6 +30,10 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
     current_year = pd.Timestamp.now().year
     birth_year = pd.Timestamp(client.date_of_birth).year
     current_age = current_year - birth_year
+    
+    # Use client's longevity age if max_age not specified
+    if max_age is None:
+        max_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
     
     # Duration of simulation
     years_to_simulate = max_age - current_age

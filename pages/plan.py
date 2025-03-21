@@ -443,11 +443,13 @@ def show_monte_carlo_simulation(client):
         )
     
     with col2:
+        # Use client's longevity age as default value
+        longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
         max_age = st.number_input(
             "Maximum Age",
             min_value=70,
             max_value=120,
-            value=95,
+            value=longevity_age,
             step=1
         )
     
@@ -552,11 +554,13 @@ def show_glidepath_optimization(client):
         )
     
     with col2:
+        # Use client's longevity age as default value
+        longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
         max_age = st.number_input(
             "Maximum Age",
             min_value=70,
             max_value=120,
-            value=95,
+            value=longevity_age,
             step=1,
             key="glidepath_max_age"
         )
