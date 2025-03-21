@@ -14,8 +14,8 @@ class Client:
         Client's email address
     date_of_birth : str
         Client's date of birth in YYYY-MM-DD format
-    risk_score : int or None
-        Client's risk tolerance score (1-10)
+    max_stock_pct : int or None
+        Client's maximum stock percentage (0-100%)
     spouse : dict or None
         Spouse information if applicable
     restylement_age : int or None
@@ -24,7 +24,7 @@ class Client:
         Age to which the client plans for financial longevity
     """
     
-    def __init__(self, id, first_name, last_name, email, date_of_birth, risk_score=None, spouse=None, 
+    def __init__(self, id, first_name, last_name, email, date_of_birth, max_stock_pct=None, spouse=None, 
                  restylement_age=65, longevity_age=95):
         """
         Initialize a Client object.
@@ -41,8 +41,8 @@ class Client:
             Client's email address
         date_of_birth : str
             Client's date of birth in YYYY-MM-DD format
-        risk_score : int or None
-            Client's risk tolerance score (1-10)
+        max_stock_pct : int or None
+            Client's maximum stock percentage (0-100%)
         spouse : dict or None
             Spouse information if applicable
         restylement_age : int
@@ -55,7 +55,7 @@ class Client:
         self.last_name = last_name
         self.email = email
         self.date_of_birth = date_of_birth
-        self.risk_score = risk_score
+        self.max_stock_pct = max_stock_pct
         self.spouse = spouse
         self.restylement_age = restylement_age
         self.longevity_age = longevity_age
@@ -66,23 +66,23 @@ class Client:
     
     def get_risk_profile(self):
         """
-        Get the client's risk profile based on risk score.
+        Get the client's risk profile based on maximum stock percentage.
         
         Returns:
         --------
         str
             Risk profile description
         """
-        if self.risk_score is None:
+        if self.max_stock_pct is None:
             return "Not assessed"
         
-        if self.risk_score <= 2:
+        if self.max_stock_pct <= 20:
             return "Very Conservative"
-        elif self.risk_score <= 4:
+        elif self.max_stock_pct <= 40:
             return "Conservative"
-        elif self.risk_score <= 6:
+        elif self.max_stock_pct <= 60:
             return "Moderate"
-        elif self.risk_score <= 8:
+        elif self.max_stock_pct <= 80:
             return "Aggressive"
         else:
             return "Very Aggressive"
@@ -102,7 +102,7 @@ class Client:
             'last_name': self.last_name,
             'email': self.email,
             'date_of_birth': self.date_of_birth,
-            'risk_score': self.risk_score,
+            'max_stock_pct': self.max_stock_pct,
             'spouse': self.spouse,
             'restylement_age': self.restylement_age,
             'longevity_age': self.longevity_age
@@ -123,13 +123,25 @@ class Client:
         Client
             New Client object
         """
+        # Handle backward compatibility with risk_score
+        max_stock_pct = data.get('max_stock_pct')
+        if max_stock_pct is None and 'risk_score' in data:
+            risk_score = data.get('risk_score')
+            # Convert risk_score (1-10) to max_stock_pct (0-100%)
+            if risk_score is not None:
+                try:
+                    risk_score = int(risk_score)
+                    max_stock_pct = risk_score * 10  # Simple conversion
+                except (ValueError, TypeError):
+                    max_stock_pct = None
+        
         return cls(
             id=data.get('id'),
             first_name=data.get('first_name'),
             last_name=data.get('last_name'),
             email=data.get('email'),
             date_of_birth=data.get('date_of_birth'),
-            risk_score=data.get('risk_score'),
+            max_stock_pct=max_stock_pct,
             spouse=data.get('spouse'),
             restylement_age=data.get('restylement_age', 65),
             longevity_age=data.get('longevity_age', 95)

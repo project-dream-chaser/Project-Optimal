@@ -136,6 +136,9 @@ def add_client_form():
             last_name = st.text_input("Last Name")
             email = st.text_input("Email")
             date_of_birth = st.date_input("Date of Birth", min_value=datetime(1900, 1, 1))
+            
+            max_stock_pct = st.slider("Maximum Stock % (0-100)", 0, 100, value=60,
+                               help="Maximum percentage of the portfolio that can be allocated to stocks")
         
         with col2:
             restylement_age = st.number_input("Restylement Age", 
@@ -156,6 +159,7 @@ def add_client_form():
                     last_name=last_name,
                     email=email,
                     date_of_birth=date_of_birth.strftime("%Y-%m-%d"),
+                    max_stock_pct=max_stock_pct,
                     restylement_age=restylement_age,
                     longevity_age=longevity_age
                 )
@@ -188,7 +192,9 @@ def edit_client_form():
             date_of_birth_obj = datetime.strptime(client.date_of_birth, "%Y-%m-%d") if client.date_of_birth else datetime.now()
             date_of_birth = st.date_input("Date of Birth", value=date_of_birth_obj, min_value=datetime(1900, 1, 1))
             
-            risk_score = st.slider("Risk Score (1-10)", 1, 10, value=client.risk_score if client.risk_score else 5)
+            max_stock_pct = st.slider("Maximum Stock % (0-100)", 0, 100, 
+                                    value=client.max_stock_pct if hasattr(client, 'max_stock_pct') and client.max_stock_pct is not None else 60,
+                                    help="Maximum percentage of the portfolio that can be allocated to stocks")
         
         with col2:
             # Default values or existing values if they exist
@@ -214,7 +220,7 @@ def edit_client_form():
                     last_name=last_name,
                     email=email,
                     date_of_birth=date_of_birth.strftime("%Y-%m-%d"),
-                    risk_score=risk_score,
+                    max_stock_pct=max_stock_pct,
                     restylement_age=restylement_age,
                     longevity_age=longevity_age
                 )

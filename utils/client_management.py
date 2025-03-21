@@ -49,7 +49,7 @@ def save_clients(clients):
         st.error(f"Error saving clients: {e}")
         return False
 
-def add_client(first_name, last_name, email, date_of_birth, risk_score=None, restylement_age=65, longevity_age=95):
+def add_client(first_name, last_name, email, date_of_birth, max_stock_pct=None, restylement_age=65, longevity_age=95):
     """Add a new client to the session state."""
     try:
         # Generate a new client ID
@@ -62,7 +62,7 @@ def add_client(first_name, last_name, email, date_of_birth, risk_score=None, res
             last_name=last_name,
             email=email,
             date_of_birth=date_of_birth,
-            risk_score=risk_score,
+            max_stock_pct=max_stock_pct,
             restylement_age=restylement_age,
             longevity_age=longevity_age
         )
