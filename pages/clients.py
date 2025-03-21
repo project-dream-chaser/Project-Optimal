@@ -49,7 +49,7 @@ def show_client_list():
             "Name": f"{client.first_name} {client.last_name}",
             "Email": client.email,
             "Date of Birth": client.date_of_birth,
-            "Risk Score": client.risk_score if client.risk_score else "Not assessed",
+            "Max Stock %": f"{client.max_stock_pct}%" if hasattr(client, 'max_stock_pct') and client.max_stock_pct is not None else "Not assessed",
             "Has Spouse": has_spouse
         })
     
