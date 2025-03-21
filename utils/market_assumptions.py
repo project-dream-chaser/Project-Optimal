@@ -21,7 +21,7 @@ def get_market_assumptions():
     ]
     
     sub_asset_classes = {
-        'Global Equity': ['US Large Cap', 'US Small Cap', 'International Developed', 'Emerging Markets'],
+        'Global Equity': ['US Value', 'US Quality', 'US Small Cap', 'International Developed', 'International Developed Small', 'Emerging Markets'],
         'Core Bond': ['US Treasuries', 'TIPS', 'Agency MBS'],
         'Short-Term Bond': ['Short Duration Treasuries', 'Short Duration Credit'],
         'Global Credit': ['US Investment Grade', 'US High Yield', 'International Credit', 'Emerging Market Debt'],
@@ -63,9 +63,11 @@ def get_market_assumptions():
     
     # Default sub-asset class assumptions
     sub_asset_class_returns = {
-        'US Large Cap': 0.065,
+        'US Value': 0.069,
+        'US Quality': 0.063,
         'US Small Cap': 0.075,
         'International Developed': 0.063,
+        'International Developed Small': 0.072,
         'Emerging Markets': 0.082,
         'US Treasuries': 0.021,
         'TIPS': 0.023,
