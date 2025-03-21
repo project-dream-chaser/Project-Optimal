@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from utils.market_assumptions import (
     get_market_assumptions, update_market_assumptions, optimize_sub_asset_classes
 )
@@ -92,7 +93,8 @@ def edit_assumptions(market_assumptions, view):
             )
         },
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        key=f"returns_editor_{view}"
     )
     
     st.markdown("### Volatility")
@@ -121,7 +123,8 @@ def edit_assumptions(market_assumptions, view):
             )
         },
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        key=f"volatility_editor_{view}"
     )
     
     st.markdown("### Correlations")
@@ -139,7 +142,8 @@ def edit_assumptions(market_assumptions, view):
             max_value=1.0,
             step=0.01
         ) for asset in asset_classes},
-        use_container_width=True
+        use_container_width=True,
+        key=f"correlation_editor_{view}"
     )
     
     # Update the assumptions with edited values
@@ -208,7 +212,8 @@ def show_sub_asset_class_models():
             )
         },
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        key=f"sub_asset_editor_{asset_class}"
     )
     
     # Save button for sub-asset class changes
@@ -303,7 +308,8 @@ def show_constraints():
             )
         },
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        key="constraints_editor"
     )
     
     # Save the edited constraints

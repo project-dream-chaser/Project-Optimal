@@ -48,7 +48,11 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
     # Simulate portfolio returns with mean reversion
     mean_reversion_speed = 0.15  # Mean reversion parameter
     long_term_mean = np.dot(asset_allocation, asset_returns)
-    current_return = np.dot(asset_allocation, market_assumptions['short_term']['expected_returns'])
+    
+    # Extract expected returns from dictionary
+    short_term_returns = np.array([market_assumptions['short_term']['expected_returns'][asset] 
+                                 for asset in market_assumptions['asset_classes']])
+    current_return = np.dot(asset_allocation, short_term_returns)
     
     # Create covariance matrix from volatilities and correlations
     cov_matrix = np.zeros((len(asset_vols), len(asset_vols)))
