@@ -36,7 +36,7 @@ def get_market_assumptions():
         'Global Equity': ['US Value', 'US Quality', 'US Small Cap', 'International Developed', 'International Developed Small', 'Emerging Markets'],
         'Core Bond': ['1-5 Year Investment Grade', 'Absolute Return', 'Total Return'],
         'Short-Term Bond': ['Short Duration Treasuries', 'Short Duration Credit'],
-        'Global Credit': ['US Investment Grade', 'US High Yield', 'International Credit', 'Emerging Market Debt'],
+        'Global Credit': ['US Investment Grade', 'US High Yield', 'Emerging Market Debt'],
         'Real Assets': ['REITs', 'Commodities', 'Infrastructure'],
         'Liquid Alternatives': ['Market Neutral', 'Managed Futures', 'Global Macro']
     }
