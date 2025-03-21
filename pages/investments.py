@@ -227,8 +227,81 @@ def show_sub_asset_class_models():
         update_market_assumptions(market_assumptions)
         st.success("Sub-asset class assumptions updated successfully!")
     
+    # Add a section for constraints
+    st.subheader("Sub-Asset Class Constraints")
+    
+    # Initialize sub-asset constraints if not already in session state
+    if 'sub_asset_constraints' not in st.session_state:
+        st.session_state.sub_asset_constraints = {}
+    
+    if asset_class not in st.session_state.sub_asset_constraints:
+        st.session_state.sub_asset_constraints[asset_class] = {}
+        
+    # Create a DataFrame for constraints
+    constraints_data = []
+    for sub in sub_asset_classes:
+        if sub in st.session_state.sub_asset_constraints[asset_class]:
+            constraints = st.session_state.sub_asset_constraints[asset_class][sub]
+            min_weight = constraints['min']
+            max_weight = constraints['max']
+        else:
+            min_weight = 0.0
+            max_weight = 100.0
+        
+        constraints_data.append({
+            "Sub-Asset Class": sub,
+            "Minimum (%)": min_weight,
+            "Maximum (%)": max_weight
+        })
+    
+    constraints_df = pd.DataFrame(constraints_data)
+    
+    # Display editable constraints table
+    edited_constraints = st.data_editor(
+        constraints_df,
+        column_config={
+            "Sub-Asset Class": st.column_config.TextColumn("Sub-Asset Class", disabled=True),
+            "Minimum (%)": st.column_config.NumberColumn(
+                "Minimum (%)",
+                format="%.1f",
+                min_value=0.0,
+                max_value=100.0,
+                step=1.0
+            ),
+            "Maximum (%)": st.column_config.NumberColumn(
+                "Maximum (%)",
+                format="%.1f",
+                min_value=0.0,
+                max_value=100.0,
+                step=1.0
+            )
+        },
+        use_container_width=True,
+        hide_index=True,
+        key=f"sub_asset_constraints_{asset_class}"
+    )
+    
+    # Save button for constraints
+    if st.button("Save Constraints"):
+        # Update sub-asset constraints
+        for row in edited_constraints.to_dict("records"):
+            sub = row["Sub-Asset Class"]
+            st.session_state.sub_asset_constraints[asset_class][sub] = {
+                'min': row["Minimum (%)"],
+                'max': row["Maximum (%)"]
+            }
+        st.success("Sub-asset class constraints updated successfully!")
+    
     # Add a section for optimization
     st.subheader("Optimize Sub-Asset Class Weights")
+    
+    # Display current risk aversion parameter
+    risk_aversion = 3.0
+    if 'risk_aversion' in st.session_state:
+        risk_aversion = st.session_state.risk_aversion
+    
+    st.write(f"Using risk aversion parameter: {risk_aversion:.1f}")
+    st.write("You can adjust this parameter in the 'Constraints' tab.")
     
     if st.button("Run Optimization"):
         with st.spinner("Optimizing sub-asset class weights..."):
