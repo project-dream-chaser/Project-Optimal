@@ -11,16 +11,13 @@ def show_investments_page():
     st.title("Investment Management")
     
     # Create tabs for the different investment sections
-    tabs = st.tabs(["Capital Market Assumptions", "Sub-Asset Class Models", "Constraints"])
+    tabs = st.tabs(["Capital Market Assumptions", "Sub-Asset Class Models"])
     
     with tabs[0]:
         show_market_assumptions()
     
     with tabs[1]:
         show_sub_asset_class_models()
-    
-    with tabs[2]:
-        show_constraints()
 
 def show_market_assumptions():
     """Display and allow editing of capital market assumptions."""
@@ -295,18 +292,15 @@ def show_sub_asset_class_models():
     # Add a section for optimization
     st.subheader("Optimize Sub-Asset Class Weights")
     
-    # Display current risk aversion parameter
-    risk_aversion = 3.0
-    if 'risk_aversion' in st.session_state:
-        risk_aversion = st.session_state.risk_aversion
+    # Use fixed risk aversion parameter of 4.0 for all sub-asset class optimizations
+    risk_aversion = 4.0
     
-    st.write(f"Using risk aversion parameter: {risk_aversion:.1f}")
-    st.write("You can adjust this parameter in the 'Constraints' tab.")
+    st.write(f"Using risk aversion parameter: {risk_aversion:.1f} (fixed)")
     
     if st.button("Run Optimization"):
         with st.spinner("Optimizing sub-asset class weights..."):
-            # Run the optimization
-            optimized_allocations = optimize_sub_asset_classes(market_assumptions)
+            # Run the optimization with fixed risk aversion parameter
+            optimized_allocations = optimize_sub_asset_classes(market_assumptions, risk_aversion=risk_aversion)
             
             # Display the results for the selected asset class
             if asset_class in optimized_allocations:

@@ -210,7 +210,7 @@ def get_asset_returns_covariance(market_assumptions, view='long_term'):
     
     return returns, volatilities, correlations
 
-def optimize_sub_asset_classes(market_assumptions):
+def optimize_sub_asset_classes(market_assumptions, risk_aversion=None):
     """
     Optimize sub-asset class allocations within each major asset class.
     
@@ -218,6 +218,9 @@ def optimize_sub_asset_classes(market_assumptions):
     -----------
     market_assumptions : dict
         Market assumptions including sub-asset class data
+    risk_aversion : float, optional
+        Risk aversion parameter (higher = more conservative)
+        If None, uses the value from session state or default 4.0
         
     Returns:
     --------
@@ -229,10 +232,11 @@ def optimize_sub_asset_classes(market_assumptions):
     
     optimized_allocations = {}
     
-    # Get risk aversion parameter from session state if available
-    risk_aversion = 3.0  # Default
-    if 'risk_aversion' in st.session_state:
-        risk_aversion = st.session_state.risk_aversion
+    # Get risk aversion parameter from input, session state, or default
+    if risk_aversion is None:
+        risk_aversion = 4.0  # Default is now 4.0
+        if 'risk_aversion' in st.session_state:
+            risk_aversion = st.session_state.risk_aversion
     
     # Check if we have sub-asset class constraints
     sub_asset_constraints = {}
