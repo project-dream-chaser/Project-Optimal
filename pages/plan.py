@@ -150,6 +150,24 @@ def create_new_plan(client):
     client : Client object
         The client for whom to create a plan
     """
+    # Define default asset classes
+    asset_classes = [
+        'Global Equity',
+        'Core Bond',
+        'Short-Term Bond',
+        'Global Credit',
+        'Real Assets',
+        'Liquid Alternatives'
+    ]
+    
+    # Create default allocation constraints
+    allocation_constraints = {}
+    for asset_class in asset_classes:
+        allocation_constraints[asset_class] = {
+            'min': 5.0,
+            'max': 60.0
+        }
+    
     # Create a basic plan with default values
     plan = Plan(
         client_id=client.id,
@@ -157,7 +175,10 @@ def create_new_plan(client):
         goals=[],
         cash_flows=[],
         initial_portfolio=100000,  # Default initial portfolio
-        asset_allocation=[0.5, 0.2, 0.1, 0.1, 0.05, 0.05]  # Default allocation
+        asset_allocation=[0.5, 0.2, 0.1, 0.1, 0.05, 0.05],  # Default allocation
+        allocation_constraints=allocation_constraints,  # Default constraints
+        risk_aversion=3.0,  # Default risk aversion
+        mean_reversion_speed=0.15  # Default mean reversion speed
     )
     
     st.session_state.current_plan = plan
