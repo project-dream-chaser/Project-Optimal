@@ -392,21 +392,25 @@ def show_goals_cash_flows(client):
     else:
         # Add default cash flows
         if st.button("Add Sample Cash Flows"):
-            # Add retirement contributions
+            # Use the client's restylement and longevity ages if available
+            restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+            longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
+            
+            # Add restylement contributions
             plan.cash_flows.append(CashFlow(
-                name="Retirement Contributions",
+                name="Restylement Contributions",
                 amount=20000,
                 start_age=current_age,
-                end_age=65,
+                end_age=restylement_age,
                 growth_rate=0.02  # 2% annual increase
             ))
             
-            # Add retirement withdrawals
+            # Add restylement withdrawals
             plan.cash_flows.append(CashFlow(
-                name="Retirement Withdrawals",
+                name="Restylement Withdrawals",
                 amount=-70000,
-                start_age=65,
-                end_age=95,
+                start_age=restylement_age,
+                end_age=longevity_age,
                 growth_rate=0.025  # 2.5% annual increase for inflation
             ))
             

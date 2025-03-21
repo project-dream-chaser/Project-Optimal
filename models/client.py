@@ -18,9 +18,14 @@ class Client:
         Client's risk tolerance score (1-10)
     spouse : dict or None
         Spouse information if applicable
+    restylement_age : int or None
+        Age at which the client plans to enter restylement (retirement)
+    longevity_age : int or None
+        Age to which the client plans for financial longevity
     """
     
-    def __init__(self, id, first_name, last_name, email, date_of_birth, risk_score=None, spouse=None):
+    def __init__(self, id, first_name, last_name, email, date_of_birth, risk_score=None, spouse=None, 
+                 restylement_age=65, longevity_age=95):
         """
         Initialize a Client object.
         
@@ -40,6 +45,10 @@ class Client:
             Client's risk tolerance score (1-10)
         spouse : dict or None
             Spouse information if applicable
+        restylement_age : int
+            Age at which the client plans to enter restylement (retirement), default is 65
+        longevity_age : int
+            Age to which the client plans for financial longevity, default is 95
         """
         self.id = id
         self.first_name = first_name
@@ -48,6 +57,8 @@ class Client:
         self.date_of_birth = date_of_birth
         self.risk_score = risk_score
         self.spouse = spouse
+        self.restylement_age = restylement_age
+        self.longevity_age = longevity_age
     
     def full_name(self):
         """Return the client's full name."""
@@ -92,7 +103,9 @@ class Client:
             'email': self.email,
             'date_of_birth': self.date_of_birth,
             'risk_score': self.risk_score,
-            'spouse': self.spouse
+            'spouse': self.spouse,
+            'restylement_age': self.restylement_age,
+            'longevity_age': self.longevity_age
         }
     
     @classmethod
@@ -117,5 +130,7 @@ class Client:
             email=data.get('email'),
             date_of_birth=data.get('date_of_birth'),
             risk_score=data.get('risk_score'),
-            spouse=data.get('spouse')
+            spouse=data.get('spouse'),
+            restylement_age=data.get('restylement_age', 65),
+            longevity_age=data.get('longevity_age', 95)
         )

@@ -129,10 +129,21 @@ def add_client_form():
     st.subheader("Add New Client")
     
     with st.form("add_client_form"):
-        first_name = st.text_input("First Name")
-        last_name = st.text_input("Last Name")
-        email = st.text_input("Email")
-        date_of_birth = st.date_input("Date of Birth", min_value=datetime(1900, 1, 1))
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            first_name = st.text_input("First Name")
+            last_name = st.text_input("Last Name")
+            email = st.text_input("Email")
+            date_of_birth = st.date_input("Date of Birth", min_value=datetime(1900, 1, 1))
+        
+        with col2:
+            restylement_age = st.number_input("Restylement Age", 
+                                             min_value=30, max_value=90, value=65,
+                                             help="Age at which you plan to enter restylement (retirement)")
+            longevity_age = st.number_input("Longevity Age",
+                                           min_value=70, max_value=120, value=95,
+                                           help="Age to which you plan for financial longevity")
         
         submitted = st.form_submit_button("Add Client")
         
@@ -144,7 +155,9 @@ def add_client_form():
                     first_name=first_name,
                     last_name=last_name,
                     email=email,
-                    date_of_birth=date_of_birth.strftime("%Y-%m-%d")
+                    date_of_birth=date_of_birth.strftime("%Y-%m-%d"),
+                    restylement_age=restylement_age,
+                    longevity_age=longevity_age
                 )
                 
                 if success:
@@ -165,14 +178,29 @@ def edit_client_form():
     st.subheader(f"Edit Client: {client.first_name} {client.last_name}")
     
     with st.form("edit_client_form"):
-        first_name = st.text_input("First Name", value=client.first_name)
-        last_name = st.text_input("Last Name", value=client.last_name)
-        email = st.text_input("Email", value=client.email)
+        col1, col2 = st.columns(2)
         
-        date_of_birth_obj = datetime.strptime(client.date_of_birth, "%Y-%m-%d") if client.date_of_birth else datetime.now()
-        date_of_birth = st.date_input("Date of Birth", value=date_of_birth_obj, min_value=datetime(1900, 1, 1))
+        with col1:
+            first_name = st.text_input("First Name", value=client.first_name)
+            last_name = st.text_input("Last Name", value=client.last_name)
+            email = st.text_input("Email", value=client.email)
+            
+            date_of_birth_obj = datetime.strptime(client.date_of_birth, "%Y-%m-%d") if client.date_of_birth else datetime.now()
+            date_of_birth = st.date_input("Date of Birth", value=date_of_birth_obj, min_value=datetime(1900, 1, 1))
+            
+            risk_score = st.slider("Risk Score (1-10)", 1, 10, value=client.risk_score if client.risk_score else 5)
         
-        risk_score = st.slider("Risk Score (1-10)", 1, 10, value=client.risk_score if client.risk_score else 5)
+        with col2:
+            # Default values or existing values if they exist
+            restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+            longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
+            
+            restylement_age = st.number_input("Restylement Age", 
+                                             min_value=30, max_value=90, value=restylement_age,
+                                             help="Age at which you plan to enter restylement (retirement)")
+            longevity_age = st.number_input("Longevity Age",
+                                           min_value=70, max_value=120, value=longevity_age,
+                                           help="Age to which you plan for financial longevity")
         
         submitted = st.form_submit_button("Update Client")
         
@@ -186,7 +214,9 @@ def edit_client_form():
                     last_name=last_name,
                     email=email,
                     date_of_birth=date_of_birth.strftime("%Y-%m-%d"),
-                    risk_score=risk_score
+                    risk_score=risk_score,
+                    restylement_age=restylement_age,
+                    longevity_age=longevity_age
                 )
                 
                 if success:
