@@ -144,7 +144,7 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
         'ages': list(range(current_age, max_age + 1))
     }
 
-def mean_variance_optimize(expected_returns, cov_matrix, risk_aversion=3.0):
+def mean_variance_optimize(expected_returns, cov_matrix, risk_aversion=3.0, min_weights=None, max_weights=None):
     """
     Perform mean-variance optimization for sub-asset classes.
     
@@ -156,6 +156,10 @@ def mean_variance_optimize(expected_returns, cov_matrix, risk_aversion=3.0):
         Covariance matrix of returns
     risk_aversion : float
         Risk aversion parameter (higher = more conservative)
+    min_weights : array-like or None
+        Minimum weights for each sub-asset class (if None, defaults to 0)
+    max_weights : array-like or None
+        Maximum weights for each sub-asset class (if None, defaults to 1)
         
     Returns:
     --------
@@ -163,6 +167,12 @@ def mean_variance_optimize(expected_returns, cov_matrix, risk_aversion=3.0):
         Optimal weights for each sub-asset class
     """
     num_assets = len(expected_returns)
+    
+    # Set default min/max weights if not provided
+    if min_weights is None:
+        min_weights = np.zeros(num_assets)
+    if max_weights is None:
+        max_weights = np.ones(num_assets)
     
     # Define the objective function to maximize utility (return - risk_aversion * variance)
     def objective(weights):
@@ -174,8 +184,8 @@ def mean_variance_optimize(expected_returns, cov_matrix, risk_aversion=3.0):
     # Constraints: sum of weights = 1
     constraints = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1.0}]
     
-    # Bounds: weights between 0 and 1
-    bounds = [(0.0, 1.0) for _ in range(num_assets)]
+    # Bounds: weights between min and max values
+    bounds = [(min_weights[i], max_weights[i]) for i in range(num_assets)]
     
     # Initial guess: equal weight
     initial_guess = np.ones(num_assets) / num_assets

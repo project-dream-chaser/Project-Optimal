@@ -225,8 +225,19 @@ def optimize_sub_asset_classes(market_assumptions):
         Optimized allocations for sub-asset classes within each major asset class
     """
     from utils.optimization import mean_variance_optimize
+    import streamlit as st
     
     optimized_allocations = {}
+    
+    # Get risk aversion parameter from session state if available
+    risk_aversion = 3.0  # Default
+    if 'risk_aversion' in st.session_state:
+        risk_aversion = st.session_state.risk_aversion
+    
+    # Check if we have sub-asset class constraints
+    sub_asset_constraints = {}
+    if 'sub_asset_constraints' in st.session_state:
+        sub_asset_constraints = st.session_state.sub_asset_constraints
     
     for asset_class, sub_assets in market_assumptions['sub_asset_classes'].items():
         # Extract returns for this group of sub-assets
@@ -253,8 +264,26 @@ def optimize_sub_asset_classes(market_assumptions):
             for j in range(n):
                 cov_matrix[i, j] = vols[i] * vols[j] * corr_matrix[i, j]
         
-        # Run mean-variance optimization
-        weights = mean_variance_optimize(returns, cov_matrix)
+        # Set up min and max weights
+        min_weights = np.zeros(n)
+        max_weights = np.ones(n)
+        
+        # Apply constraints if available for this asset class
+        if asset_class in sub_asset_constraints:
+            constraints = sub_asset_constraints[asset_class]
+            for i, sub in enumerate(sub_assets):
+                if sub in constraints:
+                    min_weights[i] = constraints[sub]['min'] / 100.0  # Convert from percentage
+                    max_weights[i] = constraints[sub]['max'] / 100.0  # Convert from percentage
+        
+        # Run mean-variance optimization with constraints
+        weights = mean_variance_optimize(
+            returns, 
+            cov_matrix, 
+            risk_aversion=risk_aversion,
+            min_weights=min_weights,
+            max_weights=max_weights
+        )
         
         # Store the optimized weights
         optimized_allocations[asset_class] = {
