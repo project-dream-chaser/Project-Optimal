@@ -26,8 +26,11 @@ def show_plan_page():
     
     # Create vertical tabs for plan sections
     plan_tabs = st.tabs([
-        "Goals & Cash Flows", 
-        "Monte Carlo Simulation", 
+        "Risk Assessment",
+        "Return Objective",
+        "Time Horizon",
+        "Tax",
+        "Liquidity",
         "Glidepath Optimization",
         "Investment Policy Statement"
     ])
@@ -62,29 +65,50 @@ def show_plan_page():
             # Load or create a plan for this client
             load_or_create_plan(selected_client)
     
-    # Goals & Cash Flows tab
+    # Risk Assessment tab
     with plan_tabs[0]:
         if st.session_state.current_plan:
-            show_goals_cash_flows(selected_client)
+            show_risk_assessment(selected_client)
         else:
             st.info("Select a client to begin planning.")
     
-    # Monte Carlo Simulation tab
+    # Return Objective tab
     with plan_tabs[1]:
         if st.session_state.current_plan:
-            show_monte_carlo_simulation(selected_client)
+            show_return_objective(selected_client)
         else:
             st.info("Select a client to begin planning.")
     
-    # Glidepath Optimization tab
+    # Time Horizon tab
     with plan_tabs[2]:
-        if st.session_state.current_plan and st.session_state.simulation_results:
+        if st.session_state.current_plan:
+            show_time_horizon(selected_client)
+        else:
+            st.info("Select a client to begin planning.")
+    
+    # Tax tab
+    with plan_tabs[3]:
+        if st.session_state.current_plan:
+            show_tax_considerations(selected_client)
+        else:
+            st.info("Select a client to begin planning.")
+    
+    # Liquidity tab (includes Goals & Cash Flows)
+    with plan_tabs[4]:
+        if st.session_state.current_plan:
+            show_liquidity(selected_client)
+        else:
+            st.info("Select a client to begin planning.")
+    
+    # Glidepath Optimization tab (includes Monte Carlo)
+    with plan_tabs[5]:
+        if st.session_state.current_plan:
             show_glidepath_optimization(selected_client)
         else:
-            st.info("Run a Monte Carlo simulation first before optimizing the glidepath.")
+            st.info("Select a client to begin planning.")
     
     # Investment Policy Statement tab
-    with plan_tabs[3]:
+    with plan_tabs[6]:
         if st.session_state.current_plan and st.session_state.glidepath_results:
             show_ips_generation(selected_client)
         else:
@@ -225,22 +249,20 @@ def save_plan(plan):
     except Exception as e:
         st.error(f"Error saving plan: {e}")
 
-def show_goals_cash_flows(client):
+def show_risk_assessment(client):
     """
-    Display and edit goals and cash flows for a client's plan.
+    Display and edit risk assessment for a client's plan.
     
     Parameters:
     -----------
     client : Client object
-        The client whose plan is being edited
+        The client whose risk is being assessed
     """
-    st.header("Goals & Cash Flows")
+    st.header("Risk Assessment")
     
     plan = st.session_state.current_plan
     
-    # Basic Plan Info
-    st.subheader("Basic Plan Information")
-    
+    # Basic client info
     col1, col2 = st.columns(2)
     
     with col1:
@@ -259,21 +281,68 @@ def show_goals_cash_flows(client):
             st.write(f"Spouse Age: {spouse_age}")
     
     with col2:
-        # Initial portfolio value
-        initial_portfolio = st.number_input(
-            "Initial Portfolio Value ($)",
+        # Client's risk profile 
+        risk_profile = client.get_risk_profile()
+        st.write(f"Risk Profile: {risk_profile}")
+        
+        # Update max stock percentage
+        max_stock_pct = client.max_stock_pct if client.max_stock_pct is not None else 60
+        new_max_stock = st.slider(
+            "Maximum Stock Percentage",
             min_value=0,
-            value=int(plan.initial_portfolio),
-            step=10000
+            max_value=100,
+            value=max_stock_pct,
+            step=5,
+            help="The maximum percentage of the portfolio that should be allocated to stocks (higher = more aggressive)"
         )
         
-        if initial_portfolio != plan.initial_portfolio:
-            plan.initial_portfolio = initial_portfolio
-            save_plan(plan)
+        if new_max_stock != max_stock_pct:
+            # Update client's risk profile
+            client.max_stock_pct = new_max_stock
+            # Update the client in the session state
+            for i, c in enumerate(st.session_state.clients):
+                if c.id == client.id:
+                    st.session_state.clients[i] = client
+                    break
     
-    # Asset Allocation Note
-    st.subheader("Asset Allocation")
-    st.info("Asset allocation will be determined through optimization to minimize shortfall risk. Run the Glidepath Optimization to generate the optimal asset allocation that maximizes your probability of success.")
+    # Risk Parameters
+    st.subheader("Risk Parameters")
+    
+    # Initialize risk parameters if not in the plan
+    if not hasattr(plan, 'risk_aversion'):
+        plan.risk_aversion = 3.0
+    
+    if not hasattr(plan, 'mean_reversion_speed'):
+        plan.mean_reversion_speed = 0.15
+    
+    # Risk aversion parameter
+    risk_aversion = st.slider(
+        "Risk Aversion Parameter",
+        min_value=1.0,
+        max_value=10.0,
+        value=plan.risk_aversion,
+        step=0.1,
+        help="Higher values lead to more conservative allocations"
+    )
+    
+    # Mean reversion parameter
+    mean_reversion_speed = st.slider(
+        "Mean Reversion Speed",
+        min_value=0.0,
+        max_value=0.5,
+        value=plan.mean_reversion_speed,
+        step=0.01,
+        help="Speed at which returns revert to long-term means (0 = no mean reversion, 0.5 = fast mean reversion)"
+    )
+    
+    # Update risk parameters if changed
+    if risk_aversion != plan.risk_aversion or mean_reversion_speed != plan.mean_reversion_speed:
+        plan.risk_aversion = risk_aversion
+        plan.mean_reversion_speed = mean_reversion_speed
+        save_plan(plan)
+    
+    # Asset Allocation Constraints
+    st.subheader("Asset Allocation Constraints")
     
     asset_classes = [
         'Global Equity',
@@ -283,35 +352,6 @@ def show_goals_cash_flows(client):
         'Real Assets',
         'Liquid Alternatives'
     ]
-    
-    # If we have glidepath results, show the initial allocation from the glidepath
-    if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
-        glidepath = st.session_state.glidepath_results['glidepath']
-        if glidepath is not None and len(glidepath) > 0:
-            initial_allocation = glidepath[0]
-            
-            # Display optimized initial allocation as a pie chart
-            fig, ax = plt.subplots(figsize=(6, 4))
-            ax.pie(initial_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
-            ax.axis('equal')
-            ax.set_title('Optimized Initial Asset Allocation')
-            st.pyplot(fig)
-            
-            # Update the plan's asset allocation with the optimized initial allocation
-            plan.asset_allocation = initial_allocation.tolist()
-            save_plan(plan)
-    # If no glidepath results yet, show a placeholder or message
-    elif hasattr(plan, 'asset_allocation') and plan.asset_allocation:
-        st.write("Current allocation (will be optimized when you run the Glidepath Optimization):")
-        # Display current allocation as a pie chart
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.pie(plan.asset_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
-        ax.axis('equal')
-        ax.set_title('Current Asset Allocation (Not Optimized)')
-        st.pyplot(fig)
-    
-    # Asset Allocation Constraints
-    st.subheader("Asset Allocation Constraints")
     
     # Initialize allocation constraints if not in the plan
     if not hasattr(plan, 'allocation_constraints') or not plan.allocation_constraints:
@@ -379,42 +419,388 @@ def show_goals_cash_flows(client):
             }
         save_plan(plan)
         st.success("Allocation constraints saved successfully!")
+
+def show_return_objective(client):
+    """
+    Display and edit return objectives for a client's plan.
     
-    # Risk Parameters
-    st.subheader("Risk Parameters")
+    Parameters:
+    -----------
+    client : Client object
+        The client whose return objectives are being defined
+    """
+    st.header("Return Objective")
     
-    # Initialize risk parameters if not in the plan
-    if not hasattr(plan, 'risk_aversion'):
-        plan.risk_aversion = 3.0
+    plan = st.session_state.current_plan
     
-    if not hasattr(plan, 'mean_reversion_speed'):
-        plan.mean_reversion_speed = 0.15
+    st.subheader("Portfolio Return Requirements")
     
-    # Risk aversion parameter
-    risk_aversion = st.slider(
-        "Risk Aversion Parameter",
-        min_value=1.0,
-        max_value=10.0,
-        value=plan.risk_aversion,
-        step=0.1,
-        help="Higher values lead to more conservative allocations"
-    )
+    # Calculate required return based on goals and cash flows
+    if plan.goals or plan.cash_flows:
+        # Initial portfolio value
+        initial_portfolio = plan.initial_portfolio
+        
+        # Basic calculation of money needed and time horizon
+        st.write(f"Initial Portfolio Value: ${initial_portfolio:,}")
+        
+        if plan.goals:
+            total_goals = sum(goal.amount for goal in plan.goals)
+            st.write(f"Total Future Goals: ${total_goals:,}")
+        
+        if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
+            expected_return = st.session_state.glidepath_results.get('expected_return', 0) * 100
+            st.write(f"Optimized Expected Return: {expected_return:.2f}%")
+        else:
+            st.info("Run the Glidepath Optimization to calculate the expected return based on your goals and constraints.")
+    else:
+        st.info("Add goals and cash flows in the Liquidity section to calculate return requirements.")
     
-    # Mean reversion parameter
-    mean_reversion_speed = st.slider(
-        "Mean Reversion Speed",
-        min_value=0.0,
-        max_value=0.5,
-        value=plan.mean_reversion_speed,
-        step=0.01,
-        help="Speed at which returns revert to long-term means (0 = no mean reversion, 0.5 = fast mean reversion)"
-    )
+    # Asset Allocation section
+    st.subheader("Current Asset Allocation")
     
-    # Update risk parameters if changed
-    if risk_aversion != plan.risk_aversion or mean_reversion_speed != plan.mean_reversion_speed:
-        plan.risk_aversion = risk_aversion
-        plan.mean_reversion_speed = mean_reversion_speed
+    asset_classes = [
+        'Global Equity',
+        'Core Bond', 
+        'Short-Term Bond',
+        'Global Credit',
+        'Real Assets',
+        'Liquid Alternatives'
+    ]
+    
+    if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
+        glidepath = st.session_state.glidepath_results['glidepath']
+        if glidepath is not None and len(glidepath) > 0:
+            initial_allocation = glidepath[0]
+            
+            # Display optimized initial allocation as a pie chart
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.pie(initial_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
+            ax.axis('equal')
+            ax.set_title('Optimized Initial Asset Allocation')
+            st.pyplot(fig)
+            
+            # Display expected returns for each asset class
+            if 'market_assumptions' in st.session_state:
+                market_assumptions = st.session_state.market_assumptions
+                st.subheader("Expected Returns by Asset Class")
+                
+                returns_data = []
+                for i, asset_class in enumerate(asset_classes):
+                    if asset_class in market_assumptions['long_term']['expected_returns']:
+                        exp_return = market_assumptions['long_term']['expected_returns'][asset_class] * 100
+                        weight = initial_allocation[i] * 100
+                        returns_data.append({
+                            "Asset Class": asset_class,
+                            "Expected Return (%)": f"{exp_return:.2f}",
+                            "Weight (%)": f"{weight:.2f}",
+                            "Contribution (%)": f"{exp_return * weight / 100:.2f}"
+                        })
+                
+                returns_df = pd.DataFrame(returns_data)
+                st.dataframe(returns_df, use_container_width=True, hide_index=True)
+    else:
+        if hasattr(plan, 'asset_allocation') and plan.asset_allocation:
+            st.write("Current allocation (will be optimized when you run the Glidepath Optimization):")
+            # Display current allocation as a pie chart
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.pie(plan.asset_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
+            ax.axis('equal')
+            ax.set_title('Current Asset Allocation (Not Optimized)')
+            st.pyplot(fig)
+            
+            st.info("Run the Glidepath Optimization to find the optimal allocation that meets your return objectives.")
+
+def show_time_horizon(client):
+    """
+    Display and edit time horizon for a client's plan.
+    
+    Parameters:
+    -----------
+    client : Client object
+        The client whose time horizon is being defined
+    """
+    st.header("Time Horizon")
+    
+    plan = st.session_state.current_plan
+    
+    # Calculate client's current age
+    birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
+    current_year = datetime.now().year
+    current_age = current_year - birth_year
+    
+    # Restylement and longevity ages
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Key Age Milestones")
+        
+        # Use the client's restylement and longevity ages if available
+        restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+        longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
+        
+        new_restylement_age = st.number_input(
+            "Restylement Age",
+            min_value=current_age,
+            max_value=100,
+            value=restylement_age,
+            step=1,
+            help="Age at which the client plans to enter restylement (retirement)"
+        )
+        
+        new_longevity_age = st.number_input(
+            "Longevity Age",
+            min_value=new_restylement_age,
+            max_value=120,
+            value=longevity_age,
+            step=1,
+            help="Age for which the client plans financial longevity"
+        )
+        
+        if new_restylement_age != restylement_age or new_longevity_age != longevity_age:
+            # Update client's ages
+            client.restylement_age = new_restylement_age
+            client.longevity_age = new_longevity_age
+            # Update the client in the session state
+            for i, c in enumerate(st.session_state.clients):
+                if c.id == client.id:
+                    st.session_state.clients[i] = client
+                    break
+    
+    with col2:
+        st.subheader("Time Horizon Metrics")
+        
+        # Calculate years until key milestones
+        years_to_restylement = new_restylement_age - current_age
+        planning_time_horizon = new_longevity_age - current_age
+        restylement_duration = new_longevity_age - new_restylement_age
+        
+        st.write(f"Current Age: {current_age}")
+        st.write(f"Years Until Restylement: {years_to_restylement}")
+        st.write(f"Total Planning Horizon: {planning_time_horizon} years")
+        st.write(f"Expected Restylement Duration: {restylement_duration} years")
+    
+    # Glidepath visualization if available
+    if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
+        st.subheader("Glidepath Over Time")
+        fig = plot_glidepath(st.session_state.glidepath_results)
+        st.pyplot(fig)
+    else:
+        st.info("Run the Glidepath Optimization to see how your allocation will change over time.")
+    
+    # Goals timeline
+    if plan.goals:
+        st.subheader("Goals Timeline")
+        
+        # Create timeline data
+        timeline_data = []
+        for goal in plan.goals:
+            years_from_now = goal.age - current_age
+            timeline_data.append({
+                "Goal": goal.name,
+                "Age": goal.age,
+                "Years From Now": years_from_now,
+                "Amount": f"${goal.amount:,}",
+                "Priority": goal.priority
+            })
+        
+        # Sort by age
+        timeline_data = sorted(timeline_data, key=lambda x: x["Age"])
+        
+        # Display timeline
+        timeline_df = pd.DataFrame(timeline_data)
+        st.dataframe(timeline_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("Add goals in the Liquidity section to visualize your timeline.")
+
+def show_tax_considerations(client):
+    """
+    Display and edit tax considerations for a client's plan.
+    
+    Parameters:
+    -----------
+    client : Client object
+        The client whose tax considerations are being defined
+    """
+    st.header("Tax Considerations")
+    
+    plan = st.session_state.current_plan
+    
+    st.subheader("Tax Rates")
+    
+    # Tax rates (default or from plan)
+    if not hasattr(plan, 'tax_rates'):
+        plan.tax_rates = {
+            'income_tax_rate': 25.0,
+            'capital_gains_rate': 15.0,
+            'estate_tax_rate': 40.0
+        }
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        income_tax_rate = st.slider(
+            "Income Tax Rate (%)",
+            min_value=0.0,
+            max_value=50.0,
+            value=plan.tax_rates['income_tax_rate'],
+            step=0.5
+        )
+        
+        capital_gains_rate = st.slider(
+            "Capital Gains Rate (%)",
+            min_value=0.0,
+            max_value=30.0,
+            value=plan.tax_rates['capital_gains_rate'],
+            step=0.5
+        )
+    
+    with col2:
+        estate_tax_rate = st.slider(
+            "Estate Tax Rate (%)",
+            min_value=0.0,
+            max_value=50.0,
+            value=plan.tax_rates['estate_tax_rate'],
+            step=0.5
+        )
+    
+    # Update tax rates if changed
+    if (income_tax_rate != plan.tax_rates['income_tax_rate'] or 
+        capital_gains_rate != plan.tax_rates['capital_gains_rate'] or
+        estate_tax_rate != plan.tax_rates['estate_tax_rate']):
+        
+        plan.tax_rates = {
+            'income_tax_rate': income_tax_rate,
+            'capital_gains_rate': capital_gains_rate,
+            'estate_tax_rate': estate_tax_rate
+        }
         save_plan(plan)
+    
+    st.subheader("Account Types")
+    
+    # Account type allocations (default or from plan)
+    if not hasattr(plan, 'account_types'):
+        plan.account_types = {
+            'taxable': 50.0,
+            'tax_deferred': 30.0,
+            'tax_free': 20.0
+        }
+    
+    # Display pie chart of account types
+    account_types = ['Taxable', 'Tax-Deferred', 'Tax-Free']
+    account_allocations = [
+        plan.account_types['taxable'],
+        plan.account_types['tax_deferred'],
+        plan.account_types['tax_free']
+    ]
+    
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.pie(account_allocations, labels=account_types, autopct='%1.1f%%', startangle=90)
+    ax.axis('equal')
+    ax.set_title('Portfolio by Account Type')
+    st.pyplot(fig)
+    
+    # Edit account allocations
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        taxable_pct = st.slider(
+            "Taxable (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=plan.account_types['taxable'],
+            step=1.0
+        )
+    
+    with col2:
+        tax_deferred_pct = st.slider(
+            "Tax-Deferred (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=plan.account_types['tax_deferred'],
+            step=1.0
+        )
+    
+    with col3:
+        tax_free_pct = st.slider(
+            "Tax-Free (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=plan.account_types['tax_free'],
+            step=1.0
+        )
+    
+    # Normalize to 100%
+    total = taxable_pct + tax_deferred_pct + tax_free_pct
+    if total > 0:
+        normalized_taxable = (taxable_pct / total) * 100
+        normalized_tax_deferred = (tax_deferred_pct / total) * 100
+        normalized_tax_free = (tax_free_pct / total) * 100
+    else:
+        normalized_taxable = 33.33
+        normalized_tax_deferred = 33.33
+        normalized_tax_free = 33.34
+    
+    # Update if changed
+    if (normalized_taxable != plan.account_types['taxable'] or
+        normalized_tax_deferred != plan.account_types['tax_deferred'] or
+        normalized_tax_free != plan.account_types['tax_free']):
+        
+        plan.account_types = {
+            'taxable': normalized_taxable,
+            'tax_deferred': normalized_tax_deferred,
+            'tax_free': normalized_tax_free
+        }
+        save_plan(plan)
+    
+    # Tax considerations and notes
+    st.subheader("Tax Efficiency Notes")
+    
+    # Asset location suggestions based on tax efficiency
+    st.write("Suggested Asset Location:")
+    
+    tax_efficiency = pd.DataFrame([
+        {"Asset Class": "Global Equity", "Taxable": "Low", "Tax-Deferred": "High", "Tax-Free": "High"},
+        {"Asset Class": "Core Bond", "Taxable": "Low", "Tax-Deferred": "High", "Tax-Free": "Medium"},
+        {"Asset Class": "Short-Term Bond", "Taxable": "Medium", "Tax-Deferred": "Medium", "Tax-Free": "Low"},
+        {"Asset Class": "Global Credit", "Taxable": "Low", "Tax-Deferred": "High", "Tax-Free": "Medium"},
+        {"Asset Class": "Real Assets", "Taxable": "Medium", "Tax-Deferred": "Medium", "Tax-Free": "High"},
+        {"Asset Class": "Liquid Alternatives", "Taxable": "Low", "Tax-Deferred": "High", "Tax-Free": "High"}
+    ])
+    
+    st.dataframe(tax_efficiency, use_container_width=True, hide_index=True)
+
+def show_liquidity(client):
+    """
+    Display and edit liquidity needs, goals, and cash flows for a client's plan.
+    
+    Parameters:
+    -----------
+    client : Client object
+        The client whose liquidity is being assessed
+    """
+    st.header("Liquidity")
+    
+    plan = st.session_state.current_plan
+    
+    # Basic Plan Info
+    st.subheader("Portfolio Value")
+    
+    # Initial portfolio value
+    initial_portfolio = st.number_input(
+        "Initial Portfolio Value ($)",
+        min_value=0,
+        value=int(plan.initial_portfolio),
+        step=10000
+    )
+    
+    if initial_portfolio != plan.initial_portfolio:
+        plan.initial_portfolio = initial_portfolio
+        save_plan(plan)
+    
+    # Calculate client's current age
+    birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
+    current_year = datetime.now().year
+    current_age = current_year - birth_year
     
     # Financial Goals
     st.subheader("Financial Goals")
@@ -538,6 +924,68 @@ def show_goals_cash_flows(client):
             
             save_plan(plan)
             st.rerun()
+    
+    # Liquidity needs section
+    st.subheader("Liquidity Needs Assessment")
+    
+    # Emergency fund calculation
+    st.write("Emergency Fund Recommendation:")
+    
+    # Find monthly expenses from cash flows
+    monthly_expenses = 0
+    for cf in plan.cash_flows:
+        if cf.amount < 0:  # It's an expense
+            # Convert annual amount to monthly
+            monthly_amount = abs(cf.amount) / 12
+            if cf.start_age <= current_age <= cf.end_age:
+                monthly_expenses += monthly_amount
+    
+    if monthly_expenses > 0:
+        st.write(f"Estimated Monthly Expenses: ${monthly_expenses:,.2f}")
+        
+        # Calculate emergency fund recommendation (3-6 months of expenses)
+        emergency_fund_min = monthly_expenses * 3
+        emergency_fund_max = monthly_expenses * 6
+        
+        st.write(f"Recommended Emergency Fund: ${emergency_fund_min:,.0f} to ${emergency_fund_max:,.0f}")
+    else:
+        st.info("Add expense cash flows to calculate emergency fund recommendations.")
+    
+    # Liquidity ratio
+    if plan.goals:
+        st.write("Liquidity Needed for Near-Term Goals:")
+        
+        # Find goals in the next 5 years
+        near_term_goals = []
+        for goal in plan.goals:
+            if goal.age - current_age <= 5:
+                near_term_goals.append({
+                    "Goal": goal.name,
+                    "Age": goal.age,
+                    "Years From Now": goal.age - current_age,
+                    "Amount": goal.amount
+                })
+        
+        if near_term_goals:
+            # Display near-term goals
+            near_term_df = pd.DataFrame(near_term_goals)
+            st.dataframe(near_term_df, use_container_width=True, hide_index=True)
+            
+            # Calculate total near-term needs
+            total_near_term = sum(goal["Amount"] for goal in near_term_goals)
+            st.write(f"Total Liquidity Needed for Near-Term Goals: ${total_near_term:,.0f}")
+            
+            # Liquidity ratio
+            if initial_portfolio > 0:
+                liquidity_ratio = total_near_term / initial_portfolio
+                st.write(f"Liquidity Ratio (Near-Term Needs / Portfolio): {liquidity_ratio:.2f}")
+                
+                if liquidity_ratio > 0.5:
+                    st.warning("High liquidity ratio: Consider keeping more assets in liquid investments.")
+                else:
+                    st.success("Healthy liquidity ratio: Near-term needs appear manageable.")
+        else:
+            st.info("No goals identified within the next 5 years.")
 
 def show_monte_carlo_simulation(client):
     """
