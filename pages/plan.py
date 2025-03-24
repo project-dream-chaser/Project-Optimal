@@ -271,8 +271,9 @@ def show_goals_cash_flows(client):
             plan.initial_portfolio = initial_portfolio
             save_plan(plan)
     
-    # Asset Allocation
-    st.subheader("Current Asset Allocation")
+    # Asset Allocation Note
+    st.subheader("Asset Allocation")
+    st.info("Asset allocation will be determined through optimization to minimize shortfall risk. Run the Glidepath Optimization to generate the optimal asset allocation that maximizes your probability of success.")
     
     asset_classes = [
         'Global Equity',
@@ -283,37 +284,31 @@ def show_goals_cash_flows(client):
         'Liquid Alternatives'
     ]
     
-    # Create allocation sliders with current values
-    allocation_values = []
-    for i, asset_class in enumerate(asset_classes):
-        current_value = plan.asset_allocation[i] * 100 if i < len(plan.asset_allocation) else 0
-        allocation = st.slider(
-            f"{asset_class} (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=float(current_value),
-            step=1.0
-        )
-        allocation_values.append(allocation / 100)
-    
-    # Normalize to ensure they sum to 1
-    total = sum(allocation_values)
-    if total > 0:
-        normalized_allocation = [value / total for value in allocation_values]
-    else:
-        normalized_allocation = [1/len(asset_classes)] * len(asset_classes)
-    
-    # Update the plan if allocation changed
-    if normalized_allocation != plan.asset_allocation:
-        plan.asset_allocation = normalized_allocation
-        save_plan(plan)
-    
-    # Display current allocation as a pie chart
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.pie(normalized_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')
-    ax.set_title('Current Asset Allocation')
-    st.pyplot(fig)
+    # If we have glidepath results, show the initial allocation from the glidepath
+    if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
+        glidepath = st.session_state.glidepath_results['glidepath']
+        if glidepath is not None and len(glidepath) > 0:
+            initial_allocation = glidepath[0]
+            
+            # Display optimized initial allocation as a pie chart
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.pie(initial_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
+            ax.axis('equal')
+            ax.set_title('Optimized Initial Asset Allocation')
+            st.pyplot(fig)
+            
+            # Update the plan's asset allocation with the optimized initial allocation
+            plan.asset_allocation = initial_allocation.tolist()
+            save_plan(plan)
+    # If no glidepath results yet, show a placeholder or message
+    elif hasattr(plan, 'asset_allocation') and plan.asset_allocation:
+        st.write("Current allocation (will be optimized when you run the Glidepath Optimization):")
+        # Display current allocation as a pie chart
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.pie(plan.asset_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')
+        ax.set_title('Current Asset Allocation (Not Optimized)')
+        st.pyplot(fig)
     
     # Asset Allocation Constraints
     st.subheader("Asset Allocation Constraints")
@@ -557,7 +552,30 @@ def show_monte_carlo_simulation(client):
     
     plan = st.session_state.current_plan
     
+    # Display a notice about asset allocation optimization
+    st.info("Monte Carlo simulation uses the current asset allocation. For best results, run the Glidepath Optimization first to determine the optimal asset allocation that minimizes shortfall risk.")
+    
+    # Display the current asset allocation used for simulation
+    asset_classes = [
+        'Global Equity',
+        'Core Bond', 
+        'Short-Term Bond',
+        'Global Credit',
+        'Real Assets',
+        'Liquid Alternatives'
+    ]
+    
+    if hasattr(plan, 'asset_allocation') and plan.asset_allocation:
+        st.subheader("Current Asset Allocation for Simulation")
+        # Display current allocation as a pie chart
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.pie(plan.asset_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')
+        ax.set_title('Asset Allocation Used in Simulation')
+        st.pyplot(fig)
+    
     # Simulation parameters
+    st.subheader("Simulation Parameters")
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -615,6 +633,7 @@ def show_monte_carlo_simulation(client):
         # Success probability
         success_prob = results['success_probability']
         st.subheader(f"Probability of Success: {success_prob:.1%}")
+        st.markdown("*Probability of portfolio not going below $0 before the end of plan*")
         
         # Create color-coded success indicator
         if success_prob >= 0.75:
@@ -645,12 +664,17 @@ def show_monte_carlo_simulation(client):
             
             # Calculate probability of ruin (portfolio value going to zero)
             ruin_prob = np.sum(final_values <= 0) / len(final_values)
-            st.write(f"Probability of Ruin: {ruin_prob:.1%}")
+            st.write(f"Probability of Shortfall: {ruin_prob:.1%}")
+            st.write("(Probability of running out of money)")
             
             # Calculate average shortfall
             shortfall_values = final_values[final_values <= 0]
             avg_shortfall = np.mean(shortfall_values) if len(shortfall_values) > 0 else 0
             st.write(f"Average Shortfall: ${abs(avg_shortfall):,.0f}")
+            
+        # Recommendation for optimization
+        if success_prob < 0.75:
+            st.warning("The current asset allocation may not be optimal. Consider running the Glidepath Optimization to find an asset allocation that minimizes shortfall risk.")
     else:
         st.info("Run a Monte Carlo simulation to see the results.")
 
@@ -665,9 +689,17 @@ def show_glidepath_optimization(client):
     """
     st.header("Glidepath Optimization")
     
+    # Description of what this does
+    st.markdown("""
+    The Glidepath Optimization feature determines the optimal asset allocation strategy that **minimizes shortfall risk**
+    (the probability of running out of money) throughout your lifetime. It creates a multi-period allocation strategy 
+    that adjusts over time based on your changing financial needs and risk profile.
+    """)
+    
     plan = st.session_state.current_plan
     
     # Optimization parameters
+    st.subheader("Optimization Parameters")
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -698,12 +730,13 @@ def show_glidepath_optimization(client):
             min_value=5,
             max_value=20,
             value=10,
-            step=1
+            step=1,
+            help="How many allocation adjustments over the lifetime of the plan"
         )
     
     # Button to run the optimization
     if st.button("Optimize Glidepath"):
-        with st.spinner("Optimizing glidepath... (this may take a few minutes)"):
+        with st.spinner("Optimizing glidepath to minimize shortfall risk... (this may take a few minutes)"):
             # Get market assumptions
             market_assumptions = st.session_state.market_assumptions
             
@@ -730,6 +763,17 @@ def show_glidepath_optimization(client):
         # Success probability
         success_prob = results['success_probability']
         st.subheader(f"Optimized Probability of Success: {success_prob:.1%}")
+        st.markdown("*Probability of portfolio not going below $0 before the end of plan*")
+        
+        # Compare before and after optimization if we have simulation results
+        if 'simulation_results' in st.session_state and st.session_state.simulation_results:
+            original_prob = st.session_state.simulation_results['success_probability']
+            improvement = success_prob - original_prob
+            
+            if improvement > 0:
+                st.success(f"Optimization improved success probability by {improvement:.1%} compared to initial allocation")
+            else:
+                st.info(f"Optimization resulted in same success probability as initial allocation")
         
         # Create color-coded success indicator
         if success_prob >= 0.75:
@@ -744,7 +788,7 @@ def show_glidepath_optimization(client):
         st.pyplot(fig)
         
         # Display glidepath data table
-        st.subheader("Glidepath Data")
+        st.subheader("Optimized Glidepath Data")
         
         # Create a DataFrame with the glidepath data
         glidepath_data = []
