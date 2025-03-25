@@ -57,8 +57,12 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
         use_glidepath = False
         glidepath = None
     
-    # Extract returns and volatilities from market assumptions
-    asset_returns, asset_vols, correlations = get_asset_returns_covariance(market_assumptions, 'long_term')
+    # Extract returns and volatilities from market assumptions (both short and long-term)
+    long_term_returns, long_term_vols, long_term_corr = get_asset_returns_covariance(market_assumptions, 'long_term')
+    short_term_returns, short_term_vols, short_term_corr = get_asset_returns_covariance(market_assumptions, 'short_term')
+    
+    # Define mean reversion period (7 years as requested)
+    mean_reversion_years = 7
     
     # Prepare arrays for simulation results
     portfolio_paths = np.zeros((num_simulations, years_to_simulate + 1))
@@ -82,31 +86,58 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
     # Mean reversion parameters
     mean_reversion_speed = plan.mean_reversion_speed if hasattr(plan, 'mean_reversion_speed') else 0.15
     
-    # Get short-term expected returns (current market conditions)
-    short_term_returns = np.array([market_assumptions['short_term']['expected_returns'][asset] 
-                                 for asset in market_assumptions['asset_classes']])
+    # Create time-varying return expectations (linear transition from short to long term)
+    time_varying_returns = np.zeros((years_to_simulate + 1, len(long_term_returns)))
     
-    # Create covariance matrix from volatilities and correlations
-    cov_matrix = np.zeros((len(asset_vols), len(asset_vols)))
-    for i in range(len(asset_vols)):
-        for j in range(len(asset_vols)):
+    # Initialize with short-term returns
+    time_varying_returns[0] = short_term_returns
+    
+    # Create gradual transition from short to long-term over mean_reversion_years
+    for year in range(1, years_to_simulate + 1):
+        # Calculate the weight of long-term returns (increases from 0 to 1 over mean_reversion_years)
+        if year < mean_reversion_years:
+            long_term_weight = year / mean_reversion_years
+        else:
+            long_term_weight = 1.0
+            
+        # Blend short-term and long-term returns based on weight
+        time_varying_returns[year] = (1 - long_term_weight) * short_term_returns + long_term_weight * long_term_returns
+    
+    # Create time-varying covariance matrices
+    # For simplicity, we'll use short-term volatilities and correlations for year 0
+    # and transition to long-term over mean_reversion_years
+    
+    # Create initial (short-term) covariance matrix
+    short_term_cov = np.zeros((len(short_term_vols), len(short_term_vols)))
+    for i in range(len(short_term_vols)):
+        for j in range(len(short_term_vols)):
             if i == j:
-                cov_matrix[i, j] = asset_vols[i]**2
+                short_term_cov[i, j] = short_term_vols[i]**2
             else:
-                cov_matrix[i, j] = asset_vols[i] * asset_vols[j] * correlations[i, j]
+                short_term_cov[i, j] = short_term_vols[i] * short_term_vols[j] * short_term_corr[i, j]
+                
+    # Create final (long-term) covariance matrix
+    long_term_cov = np.zeros((len(long_term_vols), len(long_term_vols)))
+    for i in range(len(long_term_vols)):
+        for j in range(len(long_term_vols)):
+            if i == j:
+                long_term_cov[i, j] = long_term_vols[i]**2
+            else:
+                long_term_cov[i, j] = long_term_vols[i] * long_term_vols[j] * long_term_corr[i, j]
     
     # Run simulations
     for sim in range(num_simulations):
         current_portfolio = initial_portfolio
         
-        # Initialize current return expectation with short-term view
+        # Initialize with first year's allocation
         if use_glidepath and glidepath is not None:
             current_allocation = glidepath[0]
         else:
             current_allocation = asset_allocation
             
-        current_return = np.dot(current_allocation, short_term_returns)
-        current_vol = np.sqrt(np.dot(current_allocation, np.dot(cov_matrix, current_allocation)))
+        # Use short-term returns and covariance for year 0
+        current_expected_return = np.dot(current_allocation, short_term_returns)
+        current_vol = np.sqrt(np.dot(current_allocation, np.dot(short_term_cov, current_allocation)))
         
         # Initialize market valuation ratio (P/E or CAPE)
         # Start with a slight overvaluation (1.1x fair value)
@@ -122,22 +153,31 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
             else:
                 current_allocation = asset_allocation
             
-            # Compute the long-term expected return for current allocation
-            long_term_mean = np.dot(current_allocation, asset_returns)
+            # Calculate blended covariance matrix for this year (interpolate between short and long term)
+            if year < mean_reversion_years:
+                # Blend factor (increases from 0 to 1 over mean_reversion_years)
+                blend_factor = year / mean_reversion_years
+                current_cov = (1 - blend_factor) * short_term_cov + blend_factor * long_term_cov
+            else:
+                # Use long-term covariance after mean_reversion_years
+                current_cov = long_term_cov
+            
+            # Get the time-varying expected return for this year's allocation
+            time_varying_mean = np.dot(current_allocation, time_varying_returns[year])
             
             # Apply valuation adjustment to expected returns
             # When market_valuation_ratio > 1, market is overvalued, so expected returns are lower
             valuation_adjustment = (fair_valuation / market_valuation_ratio - 1)
-            adjusted_return = current_return + valuation_adjustment * 0.03  # 3% annual adjustment
+            adjusted_return = current_expected_return + valuation_adjustment * 0.03  # 3% annual adjustment
             
-            # Apply mean reversion to expected returns (to long-term equilibrium)
-            current_return = current_return + mean_reversion_speed * (long_term_mean - current_return)
+            # Apply mean reversion to expected returns (towards time-varying expected return)
+            current_expected_return = current_expected_return + mean_reversion_speed * (time_varying_mean - current_expected_return)
             
             # Apply mean reversion to market valuation
             market_valuation_ratio = market_valuation_ratio + valuation_mean_reversion * (fair_valuation - market_valuation_ratio)
             
-            # Calculate current volatility for the portfolio
-            current_vol = np.sqrt(np.dot(current_allocation, np.dot(cov_matrix, current_allocation)))
+            # Calculate current volatility for the portfolio using the blended covariance matrix
+            current_vol = np.sqrt(np.dot(current_allocation, np.dot(current_cov, current_allocation)))
             
             # Get this year's cash flows (contributions and withdrawals)
             cash_flows = sum(cf.amount * (1 + cf.growth_rate)**(year - 1) 
