@@ -128,6 +128,17 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
         styles['Normal']
     ))
     
+    # Add information about the mean reversion methodology if available
+    if hasattr(plan, 'glidepath_info') and plan.glidepath_info:
+        mean_reversion_years = plan.glidepath_info.get('mean_reversion_years', 7)
+        story.append(Paragraph(
+            f"<b>Capital Market Assumption Methodology:</b> This financial plan uses a sophisticated "
+            f"mean reversion model that blends short-term market views with long-term equilibrium expectations. "
+            f"The model assumes market returns will gradually revert from current conditions to long-term "
+            f"expectations over approximately {mean_reversion_years} years.",
+            styles['Normal']
+        ))
+    
     story.append(Paragraph(
         f"The probability of meeting all financial goals based on Monte Carlo analysis "
         f"is approximately <b>{glidepath_result['success_probability']*100:.1f}%</b>.",
@@ -143,12 +154,13 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     current_year = datetime.now().year
     birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
     current_age = current_year - birth_year
-    retirement_age = 65  # Assumption
+    # Use client's restylement_age if available, otherwise use 65 as default
+    retirement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
     
     story.append(Paragraph(
         f"The investor is currently {current_age} years old. The primary investment time horizon "
-        f"extends to retirement at age {retirement_age} and beyond. The investment strategy accounts "
-        f"for both accumulation phase (pre-retirement) and distribution phase (post-retirement) needs.",
+        f"extends to restylement at age {retirement_age} and beyond. The investment strategy accounts "
+        f"for both accumulation phase (pre-restylement) and distribution phase (post-restylement) needs.",
         styles['Normal']
     ))
     
@@ -161,7 +173,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
         ["Time Horizon", "Years", "Purpose"],
         ["Short-term", "0-3 years", "Emergency funds, near-term goals"],
         ["Intermediate", "3-10 years", "Medium-term goals (home purchase, education)"],
-        ["Long-term", f"{years_to_retirement}+ years", "Retirement funding"]
+        ["Long-term", f"{years_to_retirement}+ years", "Restylement funding"]
     ]
     
     time_table = Table(time_data, colWidths=[1.5*inch, 1*inch, 2.5*inch])
@@ -289,11 +301,31 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Paragraph("9. Glidepath Strategy", styles['Heading1']))
     story.append(Paragraph(
         "The investment strategy includes a glidepath approach that will gradually adjust the "
-        "asset allocation over time to reduce risk as the investor approaches and enters retirement. "
+        "asset allocation over time to reduce risk as the investor approaches and enters restylement. "
         "This dynamic approach balances growth potential in early years with capital preservation "
         "in later years.",
         styles['Normal']
     ))
+    
+    # Add detailed information about the glidepath methodology if available
+    if hasattr(plan, 'glidepath_info') and plan.glidepath_info:
+        story.append(Paragraph(
+            "<b>Advanced Glidepath Methodology:</b> This plan utilizes a sophisticated multi-period optimization "
+            "approach that considers both short-term market conditions and long-term equilibrium expectations. "
+            "The glidepath is designed to dynamically adjust to changing market environments while maintaining "
+            "a focus on long-term goals.",
+            styles['Normal']
+        ))
+        
+        # Add information about sustainable withdrawal rate if available
+        if 'sustainable_withdrawal_rate' in glidepath_result:
+            swr = glidepath_result['sustainable_withdrawal_rate'] * 100
+            story.append(Paragraph(
+                f"<b>Sustainable Withdrawal Rate:</b> Based on the Monte Carlo analysis and stress testing, "
+                f"a sustainable withdrawal rate of approximately <b>{swr:.2f}%</b> of the portfolio may be "
+                f"maintained throughout restylement with a high probability of success.",
+                styles['Normal']
+            ))
     
     # Create a pyplot figure for the glidepath
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -302,12 +334,19 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     glidepath = glidepath_result['glidepath']
     ages = glidepath_result['ages']
     
+    # Get retirement age from glidepath_result or use client's restylement_age
+    retirement_age = glidepath_result.get('retirement_age', 
+                                         client.restylement_age if hasattr(client, 'restylement_age') else 65)
+    
     # Plot as a stacked area chart
     bottom = np.zeros(len(glidepath))
     for i, asset in enumerate(asset_classes):
         values = [allocation[i] for allocation in glidepath]
         ax.fill_between(ages, bottom, bottom + values, label=asset)
         bottom += values
+    
+    # Add vertical line for retirement age
+    ax.axvline(x=retirement_age, color='r', linestyle='--', alpha=0.7, label='Restylement Age')
     
     ax.set_xlabel('Age')
     ax.set_ylabel('Allocation (%)')
@@ -344,7 +383,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
         "Quarterly performance reviews",
         "Annual comprehensive portfolio analysis",
         "Rebalancing as needed to maintain target allocation (±5% threshold)",
-        "Life event triggered reviews (retirement, inheritance, etc.)"
+        "Life event triggered reviews (restylement, inheritance, etc.)"
     ]
     
     for item in monitoring_items:
