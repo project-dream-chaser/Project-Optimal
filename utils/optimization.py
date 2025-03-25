@@ -265,8 +265,19 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
     bearish_glidepath = np.array(bearish_glidepath)
     bullish_glidepath = np.array(bullish_glidepath)
     
+    # Add a description of the mean reversion process to the glidepath result
+    mean_reversion_info = {
+        'description': 'This glidepath uses a 7-year mean reversion from short-term to long-term capital market assumptions',
+        'short_term_source': 'Current market conditions (short-term capital market assumptions)',
+        'long_term_source': 'Equilibrium expectations (long-term capital market assumptions)',
+        'mean_reversion_years': 7,
+        'time_varying_returns': True
+    }
+    
     # Run a final simulation with the optimized glidepath
     plan.glidepath = glidepath
+    plan.glidepath_info = mean_reversion_info
+    
     final_sim_results = run_monte_carlo_simulation(
         client, 
         plan, 

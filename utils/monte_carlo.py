@@ -191,7 +191,7 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
             # This better models market crashes than normal distribution
             df = 5  # Degrees of freedom (lower = fatter tails)
             shock = np.random.standard_t(df) / np.sqrt(df / (df-2))  # Standardized to match volatility
-            yearly_return = current_return + shock * current_vol
+            yearly_return = current_expected_return + shock * current_vol
             
             # Update portfolio value
             current_portfolio = current_portfolio * (1 + yearly_return) + cash_flows - goal_withdrawals
