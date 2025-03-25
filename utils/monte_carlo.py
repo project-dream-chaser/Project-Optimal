@@ -55,6 +55,7 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
         glidepath = plan.glidepath
     else:
         use_glidepath = False
+        glidepath = None
     
     # Extract returns and volatilities from market assumptions
     asset_returns, asset_vols, correlations = get_asset_returns_covariance(market_assumptions, 'long_term')
@@ -99,7 +100,7 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
         current_portfolio = initial_portfolio
         
         # Initialize current return expectation with short-term view
-        if use_glidepath:
+        if use_glidepath and glidepath is not None:
             current_allocation = glidepath[0]
         else:
             current_allocation = asset_allocation
@@ -115,8 +116,9 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
         
         for year in range(1, years_to_simulate + 1):
             # Get this year's allocation (from glidepath or constant)
-            if use_glidepath:
-                current_allocation = glidepath[year] if year < len(glidepath) else glidepath[-1]
+            if use_glidepath and glidepath is not None:
+                glidepath_len = len(glidepath)
+                current_allocation = glidepath[year] if year < glidepath_len else glidepath[-1]
             else:
                 current_allocation = asset_allocation
             

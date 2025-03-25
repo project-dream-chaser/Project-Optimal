@@ -10,7 +10,7 @@ import json
 
 from models.client import Client
 from models.plan import Plan, Goal, CashFlow
-from utils.monte_carlo import run_monte_carlo_simulation, plot_monte_carlo_results
+from utils.monte_carlo import run_monte_carlo_simulation, plot_monte_carlo_results, calculate_shortfall_risk
 from utils.optimization import optimize_glidepath, plot_glidepath
 from utils.ips_generator import generate_investment_policy_statement, display_ips_download_button
 from utils.client_management import get_client_by_id
