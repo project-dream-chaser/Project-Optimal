@@ -804,9 +804,60 @@ def show_liquidity(client):
     
     # Financial Goals
     st.subheader("Financial Goals")
+    st.info("Goals represent one-time or recurring withdrawals for specific purposes (e.g., college tuition, home purchase, etc.)")
+    
+    # Create columns for goal form
+    goal_col1, goal_col2 = st.columns([2, 1])
+    
+    with goal_col1:
+        new_goal_name = st.text_input("Goal Name", key="new_goal_name", placeholder="Ex: College Tuition, Home Purchase, etc.")
+    
+    with goal_col2:
+        new_goal_amount = st.number_input("Amount ($)", key="new_goal_amount", min_value=0, step=5000, value=50000)
+    
+    goal_col3, goal_col4, goal_col5 = st.columns([1, 1, 1])
+    
+    with goal_col3:
+        new_goal_age = st.number_input("Age to Achieve", key="new_goal_age", min_value=current_age, max_value=100, value=min(current_age + 5, 100))
+    
+    with goal_col4:
+        new_goal_recurring = st.checkbox("Recurring Goal?", key="new_goal_recurring", help="If checked, this goal will repeat annually for the duration specified")
+    
+    with goal_col5:
+        # Initialize the duration variable outside the conditional block
+        new_goal_duration = 1
+        if new_goal_recurring:
+            new_goal_duration = st.number_input("Duration (Years)", key="new_goal_duration", min_value=1, max_value=30, value=4)
+        new_goal_priority = st.selectbox("Priority", key="new_goal_priority", options=["High", "Medium", "Low"], index=1)
+    
+    if st.button("Add Goal"):
+        if new_goal_name and new_goal_amount > 0:
+            if new_goal_recurring and new_goal_duration > 1:
+                # Add multiple yearly goals
+                for i in range(new_goal_duration):
+                    plan.goals.append(Goal(
+                        name=f"{new_goal_name} (Year {i+1})",
+                        amount=new_goal_amount,
+                        age=new_goal_age + i,
+                        priority=new_goal_priority
+                    ))
+            else:
+                # Add a single goal
+                plan.goals.append(Goal(
+                    name=new_goal_name,
+                    amount=new_goal_amount,
+                    age=new_goal_age,
+                    priority=new_goal_priority
+                ))
+            save_plan(plan)
+            st.success(f"Added new goal: {new_goal_name}")
+            st.rerun()
+        else:
+            st.error("Please enter a goal name and amount greater than zero.")
     
     # Display existing goals
     if plan.goals:
+        st.write("Current Goals:")
         goals_data = []
         for i, goal in enumerate(plan.goals):
             goals_data.append({
@@ -821,7 +872,7 @@ def show_liquidity(client):
             pd.DataFrame(goals_data),
             column_config={
                 "Name": st.column_config.TextColumn("Goal Name"),
-                "Amount ($)": st.column_config.NumberColumn("Amount ($)", min_value=0, step=1000),
+                "Amount ($)": st.column_config.NumberColumn("Amount ($)", min_value=0, step=1000, format="$%d"),
                 "Age": st.column_config.NumberColumn("Age", min_value=current_age, max_value=100, step=1),
                 "Priority": st.column_config.SelectboxColumn("Priority", options=["High", "Medium", "Low"])
             },
@@ -833,97 +884,317 @@ def show_liquidity(client):
         # Update goals in the plan
         new_goals = []
         for _, row in edited_goals.iterrows():
-            new_goals.append(Goal(
-                name=row["Name"],
-                amount=row["Amount ($)"],
-                age=row["Age"],
-                priority=row["Priority"]
-            ))
+            # Only add goals with valid data
+            if pd.notna(row["Name"]) and pd.notna(row["Amount ($)"]) and row["Amount ($)"] > 0:
+                new_goals.append(Goal(
+                    name=row["Name"],
+                    amount=row["Amount ($)"],
+                    age=row["Age"],
+                    priority=row["Priority"]
+                ))
         
-        plan.goals = new_goals
-        save_plan(plan)
-    else:
-        # Add a new goal button
-        if st.button("Add First Goal"):
-            plan.goals.append(Goal(
-                name="Retirement",
-                amount=1000000,
-                age=65,
-                priority="High"
-            ))
+        # Only update if there are changes
+        if len(new_goals) != len(plan.goals) or any(new_goals[i].name != plan.goals[i].name or 
+                                                new_goals[i].amount != plan.goals[i].amount or
+                                                new_goals[i].age != plan.goals[i].age or
+                                                new_goals[i].priority != plan.goals[i].priority 
+                                                for i in range(min(len(new_goals), len(plan.goals)))):
+            plan.goals = new_goals
             save_plan(plan)
-            st.rerun()
+            st.success("Goals updated successfully!")
     
     # Cash Flows
     st.subheader("Cash Flows")
+    st.info("Cash flows represent ongoing contributions to (positive) or withdrawals from (negative) the portfolio over a period of time.")
     
-    # Display existing cash flows
-    if plan.cash_flows:
-        cash_flows_data = []
-        for i, cf in enumerate(plan.cash_flows):
-            cash_flows_data.append({
-                "Name": cf.name,
-                "Amount ($)": cf.amount,
-                "Start Age": cf.start_age,
-                "End Age": cf.end_age,
-                "Growth Rate (%)": cf.growth_rate * 100
-            })
+    # Create columns for cash flow form
+    cf_col1, cf_col2 = st.columns([2, 1])
+    
+    with cf_col1:
+        new_cf_name = st.text_input("Cash Flow Description", key="new_cf_name", 
+                                  placeholder="Ex: Salary, Pension, Living Expenses, etc.")
+    
+    with cf_col2:
+        new_cf_type = st.radio("Type", 
+                              ["Contribution", "Withdrawal"], 
+                              key="new_cf_type", 
+                              horizontal=True,
+                              help="Contributions add to the portfolio, withdrawals subtract from it")
+    
+    cf_col3, cf_col4 = st.columns([1, 1])
+    
+    with cf_col3:
+        new_cf_amount = st.number_input("Annual Amount ($)", 
+                                     key="new_cf_amount", 
+                                     min_value=0, 
+                                     step=5000, 
+                                     value=50000)
+    
+    with cf_col4:
+        new_cf_growth = st.number_input("Annual Growth/Inflation Rate (%)", 
+                                      key="new_cf_growth", 
+                                      min_value=-10.0, 
+                                      max_value=10.0, 
+                                      value=2.5, 
+                                      step=0.5,
+                                      help="Rate at which this cash flow will grow each year (for expenses, this is the inflation rate)")
+    
+    cf_col5, cf_col6 = st.columns([1, 1])
+    
+    with cf_col5:
+        # Use client's longevity age if available
+        restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+        longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
         
-        # Edit cash flows table
-        edited_cash_flows = st.data_editor(
-            pd.DataFrame(cash_flows_data),
-            column_config={
-                "Name": st.column_config.TextColumn("Description"),
-                "Amount ($)": st.column_config.NumberColumn("Amount ($)", step=100),
-                "Start Age": st.column_config.NumberColumn("Start Age", min_value=current_age, max_value=100, step=1),
-                "End Age": st.column_config.NumberColumn("End Age", min_value=current_age, max_value=100, step=1),
-                "Growth Rate (%)": st.column_config.NumberColumn("Growth Rate (%)", min_value=-10.0, max_value=10.0, step=0.1)
-            },
-            use_container_width=True,
-            num_rows="dynamic",
-            key="cash_flows_editor"
-        )
-        
-        # Update cash flows in the plan
-        new_cash_flows = []
-        for _, row in edited_cash_flows.iterrows():
-            new_cash_flows.append(CashFlow(
-                name=row["Name"],
-                amount=row["Amount ($)"],
-                start_age=row["Start Age"],
-                end_age=row["End Age"],
-                growth_rate=row["Growth Rate (%)"] / 100
-            ))
-        
-        plan.cash_flows = new_cash_flows
-        save_plan(plan)
-    else:
-        # Add default cash flows
-        if st.button("Add Sample Cash Flows"):
-            # Use the client's restylement and longevity ages if available
-            restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
-            longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
+        new_cf_start_age = st.number_input("Start Age", 
+                                        key="new_cf_start_age", 
+                                        min_value=current_age, 
+                                        max_value=100, 
+                                        value=current_age)
+    
+    with cf_col6:
+        new_cf_end_age = st.number_input("End Age", 
+                                      key="new_cf_end_age", 
+                                      min_value=new_cf_start_age, 
+                                      max_value=100, 
+                                      value=restylement_age if new_cf_type == "Contribution" else longevity_age)
+    
+    if st.button("Add Cash Flow"):
+        if new_cf_name and new_cf_amount > 0 and new_cf_end_age >= new_cf_start_age:
+            # Set the sign based on the type (contribution is positive, withdrawal is negative)
+            amount = new_cf_amount if new_cf_type == "Contribution" else -new_cf_amount
             
-            # Add restylement contributions
+            # Add the cash flow
             plan.cash_flows.append(CashFlow(
-                name="Restylement Contributions",
-                amount=20000,
-                start_age=current_age,
-                end_age=restylement_age,
-                growth_rate=0.02  # 2% annual increase
-            ))
-            
-            # Add restylement withdrawals
-            plan.cash_flows.append(CashFlow(
-                name="Restylement Withdrawals",
-                amount=-70000,
-                start_age=restylement_age,
-                end_age=longevity_age,
-                growth_rate=0.025  # 2.5% annual increase for inflation
+                name=new_cf_name,
+                amount=amount,
+                start_age=new_cf_start_age,
+                end_age=new_cf_end_age,
+                growth_rate=new_cf_growth / 100
             ))
             
             save_plan(plan)
+            st.success(f"Added new cash flow: {new_cf_name}")
             st.rerun()
+        else:
+            st.error("Please enter a valid name, amount, and ensure end age is equal to or greater than start age.")
+    
+    # Display existing cash flows
+    if plan.cash_flows:
+        st.write("Current Cash Flows:")
+        
+        # Split cash flows into contributions and withdrawals for better visualization
+        contributions = [cf for cf in plan.cash_flows if cf.amount > 0]
+        withdrawals = [cf for cf in plan.cash_flows if cf.amount < 0]
+        
+        # Create tabs for contributions and withdrawals
+        cf_tabs = st.tabs(["All Cash Flows", "Contributions", "Withdrawals"])
+        
+        with cf_tabs[0]:
+            # All cash flows
+            cash_flows_data = []
+            for cf in plan.cash_flows:
+                cash_flows_data.append({
+                    "Name": cf.name,
+                    "Amount ($)": cf.amount,
+                    "Type": "Contribution" if cf.amount > 0 else "Withdrawal",
+                    "Start Age": cf.start_age,
+                    "End Age": cf.end_age,
+                    "Growth Rate (%)": cf.growth_rate * 100
+                })
+            
+            # Edit cash flows table
+            edited_cash_flows = st.data_editor(
+                pd.DataFrame(cash_flows_data),
+                column_config={
+                    "Name": st.column_config.TextColumn("Description"),
+                    "Amount ($)": st.column_config.NumberColumn("Amount ($)", step=1000, format="$%d"),
+                    "Type": st.column_config.SelectboxColumn("Type", options=["Contribution", "Withdrawal"], disabled=True),
+                    "Start Age": st.column_config.NumberColumn("Start Age", min_value=current_age, max_value=100, step=1),
+                    "End Age": st.column_config.NumberColumn("End Age", min_value=current_age, max_value=100, step=1),
+                    "Growth Rate (%)": st.column_config.NumberColumn("Growth Rate (%)", min_value=-10.0, max_value=10.0, step=0.1, format="%.1f%%")
+                },
+                use_container_width=True,
+                num_rows="dynamic",
+                key="all_cash_flows_editor"
+            )
+            
+            # Update cash flows in the plan
+            if st.button("Save Cash Flow Changes"):
+                new_cash_flows = []
+                for _, row in edited_cash_flows.iterrows():
+                    # Only add cash flows with valid data
+                    if pd.notna(row["Name"]) and pd.notna(row["Amount ($)"]):
+                        # Ensure correct sign based on the selected type
+                        amount = abs(row["Amount ($)"])
+                        if row["Type"] == "Withdrawal":
+                            amount = -amount
+                        
+                        new_cash_flows.append(CashFlow(
+                            name=row["Name"],
+                            amount=amount,
+                            start_age=row["Start Age"],
+                            end_age=row["End Age"],
+                            growth_rate=row["Growth Rate (%)"] / 100
+                        ))
+                
+                plan.cash_flows = new_cash_flows
+                save_plan(plan)
+                st.success("Cash flows updated successfully!")
+                st.rerun()
+        
+        with cf_tabs[1]:
+            # Contributions only
+            if contributions:
+                contrib_data = []
+                for cf in contributions:
+                    contrib_data.append({
+                        "Name": cf.name,
+                        "Amount ($)": cf.amount,
+                        "Start Age": cf.start_age,
+                        "End Age": cf.end_age,
+                        "Growth Rate (%)": cf.growth_rate * 100
+                    })
+                
+                st.dataframe(
+                    pd.DataFrame(contrib_data),
+                    column_config={
+                        "Name": st.column_config.TextColumn("Description"),
+                        "Amount ($)": st.column_config.NumberColumn("Amount ($)", format="$%d"),
+                        "Start Age": st.column_config.NumberColumn("Start Age"),
+                        "End Age": st.column_config.NumberColumn("End Age"),
+                        "Growth Rate (%)": st.column_config.NumberColumn("Growth Rate (%)", format="%.1f%%")
+                    },
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Calculate total contributions over time
+                total_annual_contribution = sum(cf.amount for cf in contributions if cf.start_age <= current_age <= cf.end_age)
+                st.write(f"Current Annual Contribution: ${total_annual_contribution:,.2f}")
+                
+                # Calculate contribution timespan
+                contribution_years = max(cf.end_age for cf in contributions) - current_age
+                st.write(f"Planned Contribution Timespan: {contribution_years} years")
+            else:
+                st.info("No contributions defined. Add a positive cash flow as a contribution.")
+        
+        with cf_tabs[2]:
+            # Withdrawals only
+            if withdrawals:
+                withdr_data = []
+                for cf in withdrawals:
+                    withdr_data.append({
+                        "Name": cf.name,
+                        "Amount ($)": abs(cf.amount),  # Show absolute value for readability
+                        "Start Age": cf.start_age,
+                        "End Age": cf.end_age,
+                        "Growth Rate (%)": cf.growth_rate * 100
+                    })
+                
+                st.dataframe(
+                    pd.DataFrame(withdr_data),
+                    column_config={
+                        "Name": st.column_config.TextColumn("Description"),
+                        "Amount ($)": st.column_config.NumberColumn("Amount ($)", format="$%d"),
+                        "Start Age": st.column_config.NumberColumn("Start Age"),
+                        "End Age": st.column_config.NumberColumn("End Age"),
+                        "Growth Rate (%)": st.column_config.NumberColumn("Growth Rate (%)", format="%.1f%%")
+                    },
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Calculate total withdrawals over time
+                total_annual_withdrawal = sum(abs(cf.amount) for cf in withdrawals if cf.start_age <= current_age <= cf.end_age)
+                st.write(f"Current Annual Withdrawal: ${total_annual_withdrawal:,.2f}")
+                
+                # Calculate withdrawal rate
+                if plan.initial_portfolio > 0:
+                    current_withdrawal_rate = total_annual_withdrawal / plan.initial_portfolio * 100
+                    st.write(f"Current Withdrawal Rate: {current_withdrawal_rate:.2f}%")
+            else:
+                st.info("No withdrawals defined. Add a negative cash flow as a withdrawal.")
+    else:
+        # Add quick sample cash flows
+        st.write("Quick Templates:")
+        
+        sample_col1, sample_col2, sample_col3 = st.columns(3)
+        
+        with sample_col1:
+            if st.button("Add Salary Template"):
+                # Add salary contribution
+                plan.cash_flows.append(CashFlow(
+                    name="Salary Contribution",
+                    amount=75000,
+                    start_age=current_age,
+                    end_age=client.restylement_age if hasattr(client, 'restylement_age') else 65,
+                    growth_rate=0.03  # 3% annual increase
+                ))
+                save_plan(plan)
+                st.rerun()
+        
+        with sample_col2:
+            if st.button("Add Restylement Template"):
+                # Use client's restylement and longevity ages if available
+                restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+                longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
+                
+                # Add living expenses
+                plan.cash_flows.append(CashFlow(
+                    name="Living Expenses",
+                    amount=-50000,
+                    start_age=restylement_age,
+                    end_age=longevity_age,
+                    growth_rate=0.025  # 2.5% annual increase for inflation
+                ))
+                save_plan(plan)
+                st.rerun()
+        
+        with sample_col3:
+            if st.button("Add Complete Example"):
+                # Use client's restylement and longevity ages if available
+                restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+                longevity_age = client.longevity_age if hasattr(client, 'longevity_age') else 95
+                
+                # Add salary contribution
+                plan.cash_flows.append(CashFlow(
+                    name="Salary",
+                    amount=100000,
+                    start_age=current_age,
+                    end_age=restylement_age,
+                    growth_rate=0.03  # 3% annual increase
+                ))
+                
+                # Add 401k contribution
+                plan.cash_flows.append(CashFlow(
+                    name="401(k) Contribution",
+                    amount=20000,
+                    start_age=current_age,
+                    end_age=restylement_age,
+                    growth_rate=0.02  # 2% annual increase
+                ))
+                
+                # Add living expenses (pre-restylement)
+                plan.cash_flows.append(CashFlow(
+                    name="Pre-Restylement Living Expenses",
+                    amount=-70000,
+                    start_age=current_age,
+                    end_age=restylement_age,
+                    growth_rate=0.025  # 2.5% annual increase for inflation
+                ))
+                
+                # Add living expenses (post-restylement)
+                plan.cash_flows.append(CashFlow(
+                    name="Restylement Living Expenses",
+                    amount=-60000,
+                    start_age=restylement_age,
+                    end_age=longevity_age,
+                    growth_rate=0.025  # 2.5% annual increase for inflation
+                ))
+                
+                save_plan(plan)
+                st.rerun()
     
     # Liquidity needs section
     st.subheader("Liquidity Needs Assessment")
