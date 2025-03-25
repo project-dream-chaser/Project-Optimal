@@ -175,11 +175,13 @@ class Plan:
         Initial asset allocation weights
     glidepath : array-like or None
         Glidepath allocation over time if optimized
+    glidepath_info : dict or None
+        Additional information about the glidepath, including capital market assumption details
     """
     
     def __init__(self, client_id, name, goals=None, cash_flows=None, initial_portfolio=0, 
                  asset_allocation=None, allocation_constraints=None, risk_aversion=3.0, 
-                 mean_reversion_speed=0.15, glidepath=None):
+                 mean_reversion_speed=0.15, glidepath=None, glidepath_info=None):
         """
         Initialize a Plan object.
         
@@ -205,6 +207,8 @@ class Plan:
             Speed at which returns revert to long-term means
         glidepath : array-like or None
             Glidepath allocation over time if optimized
+        glidepath_info : dict or None
+            Additional information about the glidepath, including capital market assumption details
         """
         self.client_id = client_id
         self.name = name
@@ -216,6 +220,7 @@ class Plan:
         self.risk_aversion = risk_aversion
         self.mean_reversion_speed = mean_reversion_speed
         self.glidepath = glidepath
+        self.glidepath_info = glidepath_info
     
     def add_goal(self, goal):
         """
@@ -258,7 +263,8 @@ class Plan:
             'allocation_constraints': self.allocation_constraints,
             'risk_aversion': self.risk_aversion,
             'mean_reversion_speed': self.mean_reversion_speed,
-            'glidepath': self.glidepath.tolist() if self.glidepath is not None else None
+            'glidepath': self.glidepath.tolist() if self.glidepath is not None else None,
+            'glidepath_info': self.glidepath_info
         }
     
     @classmethod
@@ -289,5 +295,6 @@ class Plan:
             allocation_constraints=data.get('allocation_constraints', {}),
             risk_aversion=data.get('risk_aversion', 3.0),
             mean_reversion_speed=data.get('mean_reversion_speed', 0.15),
-            glidepath=data.get('glidepath')
+            glidepath=data.get('glidepath'),
+            glidepath_info=data.get('glidepath_info')
         )

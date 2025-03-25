@@ -61,8 +61,12 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
     long_term_returns, long_term_vols, long_term_corr = get_asset_returns_covariance(market_assumptions, 'long_term')
     short_term_returns, short_term_vols, short_term_corr = get_asset_returns_covariance(market_assumptions, 'short_term')
     
-    # Define mean reversion period (7 years as requested)
-    mean_reversion_years = 7
+    # Define mean reversion period (default is 7 years as requested)
+    # If plan has glidepath_info with mean_reversion_years, use that instead
+    if hasattr(plan, 'glidepath_info') and plan.glidepath_info and 'mean_reversion_years' in plan.glidepath_info:
+        mean_reversion_years = plan.glidepath_info['mean_reversion_years']
+    else:
+        mean_reversion_years = 7
     
     # Prepare arrays for simulation results
     portfolio_paths = np.zeros((num_simulations, years_to_simulate + 1))
@@ -86,22 +90,32 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
     # Mean reversion parameters
     mean_reversion_speed = plan.mean_reversion_speed if hasattr(plan, 'mean_reversion_speed') else 0.15
     
+    # Check if we should use time-varying returns
+    use_time_varying_returns = True
+    if hasattr(plan, 'glidepath_info') and plan.glidepath_info and 'time_varying_returns' in plan.glidepath_info:
+        use_time_varying_returns = plan.glidepath_info['time_varying_returns']
+    
     # Create time-varying return expectations (linear transition from short to long term)
     time_varying_returns = np.zeros((years_to_simulate + 1, len(long_term_returns)))
     
     # Initialize with short-term returns
     time_varying_returns[0] = short_term_returns
     
-    # Create gradual transition from short to long-term over mean_reversion_years
-    for year in range(1, years_to_simulate + 1):
-        # Calculate the weight of long-term returns (increases from 0 to 1 over mean_reversion_years)
-        if year < mean_reversion_years:
-            long_term_weight = year / mean_reversion_years
-        else:
-            long_term_weight = 1.0
-            
-        # Blend short-term and long-term returns based on weight
-        time_varying_returns[year] = (1 - long_term_weight) * short_term_returns + long_term_weight * long_term_returns
+    if use_time_varying_returns:
+        # Create gradual transition from short to long-term over mean_reversion_years
+        for year in range(1, years_to_simulate + 1):
+            # Calculate the weight of long-term returns (increases from 0 to 1 over mean_reversion_years)
+            if year < mean_reversion_years:
+                long_term_weight = year / mean_reversion_years
+            else:
+                long_term_weight = 1.0
+                
+            # Blend short-term and long-term returns based on weight
+            time_varying_returns[year] = (1 - long_term_weight) * short_term_returns + long_term_weight * long_term_returns
+    else:
+        # Use long-term returns for all years (no mean reversion)
+        for year in range(1, years_to_simulate + 1):
+            time_varying_returns[year] = long_term_returns
     
     # Create time-varying covariance matrices
     # For simplicity, we'll use short-term volatilities and correlations for year 0
@@ -154,12 +168,16 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
                 current_allocation = asset_allocation
             
             # Calculate blended covariance matrix for this year (interpolate between short and long term)
-            if year < mean_reversion_years:
-                # Blend factor (increases from 0 to 1 over mean_reversion_years)
-                blend_factor = year / mean_reversion_years
-                current_cov = (1 - blend_factor) * short_term_cov + blend_factor * long_term_cov
+            if use_time_varying_returns:
+                if year < mean_reversion_years:
+                    # Blend factor (increases from 0 to 1 over mean_reversion_years)
+                    blend_factor = year / mean_reversion_years
+                    current_cov = (1 - blend_factor) * short_term_cov + blend_factor * long_term_cov
+                else:
+                    # Use long-term covariance after mean_reversion_years
+                    current_cov = long_term_cov
             else:
-                # Use long-term covariance after mean_reversion_years
+                # Use long-term covariance for all years (no mean reversion)
                 current_cov = long_term_cov
             
             # Get the time-varying expected return for this year's allocation
