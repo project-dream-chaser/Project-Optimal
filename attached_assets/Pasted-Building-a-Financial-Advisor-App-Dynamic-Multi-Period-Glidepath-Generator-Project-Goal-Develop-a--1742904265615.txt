@@ -1,0 +1,43 @@
+Building a Financial Advisor App: Dynamic Multi-Period Glidepath Generator
+
+Project Goal:
+Develop a Python application that creates personalized investment glidepaths based on modern portfolio theory, but overcomes the limitations of traditional approaches that rely on outdated mean-variance optimization and random walk assumptions.
+
+Key Features to Implement:
+1. User input collection for:
+   - Current age and expected retirement age
+   - Current wealth
+   - Income and expected income growth 
+   - Savings rate and employer match details
+   - Risk tolerance parameters (different risk aversion above/below target)
+   - Retirement spending needs
+   - Legacy goals
+
+2. Asset modeling capabilities:
+   - Support for multiple asset classes (stocks, bonds, alternatives)
+   - Implementation of mean-reverting return models rather than random walk
+   - Dynamic expected return forecasting based on current market valuations
+
+3. Portfolio optimization engine that:
+   - Minimizes expected shortfall relative to retirement wealth needs
+   - Considers time-varying expected returns
+   - Generates dynamic portfolio allocations that adjust as market conditions change
+   - Implements the "open-loop with recourse" methodology described in the papers
+
+4. Visualization features:
+   - Glidepath charts showing optimal allocations over time
+   - Comparison with traditional static allocation approaches
+   - Probability of success metrics
+   - Impact of various inputs on final outcomes
+
+5. Educational components:
+   - Explanation of why the approach is superior to traditional methods
+   - Comparison of dynamic vs. static allocations
+   - Insights on how different inputs affect the optimal portfolio
+
+Technical Requirements:
+- Use pandas for data handling and calculations
+- Implement optimization algorithms (either using SciPy or other appropriate libraries)
+- Create interactive visualizations with Matplotlib, Seaborn or Plotly
+- Develop a clean, user-friendly interface (web-based or CLI)
+- Structure code to allow for future enhancements
