@@ -989,31 +989,31 @@ def show_liquidity(client):
 
 def show_monte_carlo_simulation(client):
     """
-    Run and display Monte Carlo simulation results.
+    Run and display advanced Monte Carlo simulation results with enhanced visualization
+    and comprehensive risk metrics using modern portfolio theory techniques.
     
     Parameters:
     -----------
     client : Client object
         The client for whom to run the simulation
     """
-    st.header("Monte Carlo Simulation")
+    st.header("Advanced Monte Carlo Simulation")
     
     plan = st.session_state.current_plan
     
-    # Display a notice about asset allocation optimization
-    st.info("Monte Carlo simulation uses the current asset allocation. For best results, run the Glidepath Optimization first to determine the optimal asset allocation that minimizes shortfall risk.")
+    # Display a notice about the enhanced modeling
+    st.info("""
+    This advanced simulation implements several improvements over traditional Monte Carlo models:
+    * Mean-reverting returns instead of random walk assumptions
+    * Time-varying expected returns based on market valuations
+    * Fat-tailed return distributions to better model market crashes
+    * Target wealth path tracking to better evaluate retirement readiness
+    """)
     
     # Display the current asset allocation used for simulation
-    asset_classes = [
-        'Global Equity',
-        'Core Bond', 
-        'Short-Term Bond',
-        'Global Credit',
-        'Real Assets',
-        'Liquid Alternatives'
-    ]
+    asset_classes = st.session_state.market_assumptions['asset_classes']
     
-    if hasattr(plan, 'asset_allocation') and plan.asset_allocation:
+    if hasattr(plan, 'asset_allocation') and plan.asset_allocation is not None:
         st.subheader("Current Asset Allocation for Simulation")
         # Display current allocation as a pie chart
         fig, ax = plt.subplots(figsize=(6, 4))
@@ -1021,8 +1021,13 @@ def show_monte_carlo_simulation(client):
         ax.axis('equal')
         ax.set_title('Asset Allocation Used in Simulation')
         st.pyplot(fig)
+    elif hasattr(plan, 'glidepath') and plan.glidepath is not None:
+        st.subheader("Using Dynamic Glidepath for Simulation")
+        st.info("Using the optimized glidepath allocation that changes over time.")
+    else:
+        st.warning("Please set an initial asset allocation or run glidepath optimization before simulation.")
     
-    # Simulation parameters
+    # Simulation parameters with enhanced options
     st.subheader("Simulation Parameters")
     col1, col2, col3 = st.columns(3)
     
@@ -1032,7 +1037,8 @@ def show_monte_carlo_simulation(client):
             min_value=100,
             max_value=10000,
             value=1000,
-            step=100
+            step=100,
+            help="More simulations give more accurate results but take longer to run"
         )
     
     with col2:
@@ -1043,23 +1049,60 @@ def show_monte_carlo_simulation(client):
             min_value=70,
             max_value=120,
             value=longevity_age,
-            step=1
+            step=1,
+            help="Maximum age to simulate to (typically life expectancy plus a buffer)"
         )
     
     with col3:
         view = st.selectbox(
             "Market View",
             options=["long_term", "short_term"],
-            format_func=lambda x: "Long-Term (Equilibrium)" if x == "long_term" else "Short-Term"
+            format_func=lambda x: "Long-Term Equilibrium" if x == "long_term" else "Current Conditions",
+            index=0,
+            help="Use long-term for strategic planning, short-term for tactical adjustments"
         )
     
-    # Button to run the simulation
-    if st.button("Run Monte Carlo Simulation"):
-        with st.spinner("Running Monte Carlo simulation..."):
+    # Additional parameters
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        mean_reversion = st.slider(
+            "Mean Reversion Speed",
+            min_value=0.05,
+            max_value=0.30,
+            value=plan.mean_reversion_speed if hasattr(plan, 'mean_reversion_speed') else 0.15,
+            step=0.01,
+            help="How quickly returns revert to long-term averages (higher = faster)"
+        )
+        plan.mean_reversion_speed = mean_reversion
+        
+    with col2:
+        risk_aversion = st.slider(
+            "Risk Aversion",
+            min_value=1.0,
+            max_value=10.0,
+            value=plan.risk_aversion if hasattr(plan, 'risk_aversion') else 3.0,
+            step=0.5,
+            help="Higher values = more conservative allocations"
+        )
+        plan.risk_aversion = risk_aversion
+    
+    # Check if plan has necessary data for simulation
+    if not hasattr(plan, 'initial_portfolio') or plan.initial_portfolio <= 0:
+        st.warning("Please set an initial portfolio value in the Liquidity section before running simulations.")
+        return
+    
+    if (not hasattr(plan, 'asset_allocation') or plan.asset_allocation is None) and (not hasattr(plan, 'glidepath') or plan.glidepath is None):
+        st.warning("Please set an initial asset allocation or run glidepath optimization before running simulations.")
+        return
+    
+    # Run simulation button
+    if st.button("Run Advanced Monte Carlo Simulation"):
+        with st.spinner("Running advanced simulation - this may take a moment..."):
             # Get market assumptions
             market_assumptions = st.session_state.market_assumptions
             
-            # Run the simulation
+            # Run simulation with enhanced modeling
             simulation_results = run_monte_carlo_simulation(
                 client,
                 plan,
@@ -1075,54 +1118,135 @@ def show_monte_carlo_simulation(client):
             save_plan(plan)
     
     # Display simulation results if available
-    if st.session_state.simulation_results:
+    if 'simulation_results' in st.session_state and st.session_state.simulation_results:
         results = st.session_state.simulation_results
         
+        st.subheader("Comprehensive Simulation Results")
+        
         # Success probability
-        success_prob = results['success_probability']
-        st.subheader(f"Probability of Success: {success_prob:.1%}")
-        st.markdown("*Probability of portfolio not going below $0 before the end of plan*")
+        col1, col2, col3 = st.columns(3)
         
-        # Create color-coded success indicator
-        if success_prob >= 0.75:
-            st.success("High probability of meeting financial goals")
-        elif success_prob >= 0.5:
-            st.warning("Moderate probability of meeting financial goals")
-        else:
-            st.error("Low probability of meeting financial goals")
+        with col1:
+            success_prob = results['success_probability']
+            st.metric(
+                "Probability of Overall Success",
+                f"{success_prob:.1%}",
+                help="Percentage of simulations where the portfolio lasts until maximum age"
+            )
+            
+            # Create color-coded success indicator
+            if success_prob >= 0.75:
+                st.success("High probability of success")
+            elif success_prob >= 0.5:
+                st.warning("Moderate probability of success")
+            else:
+                st.error("Low probability of success")
         
-        # Plot the simulation results
+        with col2:
+            if 'retirement_success_probability' in results and not pd.isna(results['retirement_success_probability']):
+                st.metric(
+                    "Probability of Meeting Retirement Target",
+                    f"{results['retirement_success_probability']:.1%}",
+                    help="Percentage of simulations where the target retirement wealth is reached"
+                )
+        
+        with col3:
+            # Calculate target retirement wealth
+            if 'target_wealth_paths' in results and 'target_percentiles' in results:
+                retirement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+                current_year = pd.Timestamp.now().year
+                birth_year = pd.Timestamp(client.date_of_birth).year
+                current_age = current_year - birth_year
+                
+                # Find index for retirement age
+                retirement_idx = retirement_age - current_age
+                if retirement_idx > 0 and retirement_idx < len(results['target_percentiles']['median']):
+                    target_wealth = results['target_percentiles']['median'][retirement_idx]
+                    st.metric(
+                        "Target Restylement Wealth",
+                        f"${target_wealth:,.0f}",
+                        help="Estimated wealth needed at restylement age"
+                    )
+        
+        # Plot the enhanced simulation results
         fig = plot_monte_carlo_results(results, client.full_name())
         st.pyplot(fig)
         
-        # Additional statistics
-        col1, col2 = st.columns(2)
+        # Calculate comprehensive risk metrics
+        risk_metrics = calculate_shortfall_risk(results)
         
-        with col1:
-            st.subheader("Portfolio Statistics")
+        # Display enhanced risk metrics in tabs
+        risk_tabs = st.tabs(["Portfolio Statistics", "Shortfall Risk", "Withdrawal Analysis"])
+        
+        with risk_tabs[0]:
+            col1, col2 = st.columns(2)
             
             # Calculate and display statistics from the simulation
             final_values = results['portfolio_paths'][:, -1]
-            st.write(f"Median Final Portfolio: ${np.median(final_values):,.0f}")
-            st.write(f"90th Percentile: ${np.percentile(final_values, 90):,.0f}")
-            st.write(f"10th Percentile: ${np.percentile(final_values, 10):,.0f}")
+            
+            with col1:
+                st.metric("Median Final Portfolio", f"${np.median(final_values):,.0f}")
+                st.metric("90th Percentile", f"${np.percentile(final_values, 90):,.0f}")
+            
+            with col2:
+                st.metric("10th Percentile", f"${np.percentile(final_values, 10):,.0f}")
+                st.metric("Average Maximum Drawdown", f"{risk_metrics['average_max_drawdown']:.1%}")
         
-        with col2:
-            st.subheader("Risk Metrics")
+        with risk_tabs[1]:
+            col1, col2 = st.columns(2)
             
-            # Calculate probability of ruin (portfolio value going to zero)
-            ruin_prob = np.sum(final_values <= 0) / len(final_values)
-            st.write(f"Probability of Shortfall: {ruin_prob:.1%}")
-            st.write("(Probability of running out of money)")
+            with col1:
+                st.metric("Shortfall Probability", f"{risk_metrics['shortfall_probability']:.1%}")
+                st.metric("Expected Shortfall", f"${risk_metrics.get('expected_shortfall', 0):,.0f}")
             
-            # Calculate average shortfall
-            shortfall_values = final_values[final_values <= 0]
-            avg_shortfall = np.mean(shortfall_values) if len(shortfall_values) > 0 else 0
-            st.write(f"Average Shortfall: ${abs(avg_shortfall):,.0f}")
+            with col2:
+                st.metric("Conditional Value at Risk (CVaR)", f"${risk_metrics['conditional_value_at_risk']:,.0f}")
+                st.metric("Lifestyle Reduction Risk", f"{risk_metrics.get('lifestyle_reduction', 0):.1%}")
             
-        # Recommendation for optimization
+            st.info("""
+            **Understanding Shortfall Risk Metrics:**
+            - **Shortfall Probability**: Chance of running out of money before the end of plan
+            - **Expected Shortfall**: Average amount below your target wealth across all simulations
+            - **Conditional Value at Risk**: Average portfolio value in the worst 5% of scenarios
+            - **Lifestyle Reduction Risk**: Potential reduction in spending needed in poor scenarios
+            """)
+        
+        with risk_tabs[2]:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'sustainable_withdrawal_rate' in risk_metrics:
+                    st.metric(
+                        "Sustainable Withdrawal Rate",
+                        f"{risk_metrics['sustainable_withdrawal_rate']*100:.2f}%",
+                        help="Maximum withdrawal rate with 90% probability of success"
+                    )
+            
+            with col2:
+                # Calculate dollar amount of sustainable withdrawal based on current portfolio
+                if 'sustainable_withdrawal_rate' in risk_metrics:
+                    initial_portfolio = plan.initial_portfolio
+                    annual_withdrawal = initial_portfolio * risk_metrics['sustainable_withdrawal_rate']
+                    
+                    st.metric(
+                        "Annual Sustainable Withdrawal",
+                        f"${annual_withdrawal:,.0f}",
+                        help="Dollar amount that can be withdrawn annually with 90% success probability"
+                    )
+                
+            # Add explanation
+            st.info("""
+            The sustainable withdrawal rate is the percentage of your portfolio that you can withdraw
+            each year with a 90% probability of not running out of money before your maximum age.
+            This is a dynamic measure that should be recalculated regularly as markets change.
+            """)
+        
+        # Recommendation for optimization if needed
         if success_prob < 0.75:
-            st.warning("The current asset allocation may not be optimal. Consider running the Glidepath Optimization to find an asset allocation that minimizes shortfall risk.")
+            st.warning("""
+            The current asset allocation may not be optimal. Consider running the Glidepath Optimization 
+            to find a dynamic asset allocation strategy that minimizes shortfall risk.
+            """)
     else:
         st.info("Run a Monte Carlo simulation to see the results.")
 
