@@ -17,20 +17,20 @@ from utils.client_management import get_client_by_id
 
 def show_plan_page():
     """Display the Plan page with financial planning tools."""
-    st.title("Financial Planning")
+    # No title header as requested
     
     # Check if there are clients available
     if not st.session_state.clients:
         st.warning("Please add clients first before creating a financial plan.")
         return
     
-    # Create vertical tabs for plan sections
+    # Create vertical tabs for plan sections with the new order
     plan_tabs = st.tabs([
-        "Risk Assessment",
-        "Return Objective",
+        "Liquidity",
         "Time Horizon",
         "Tax",
-        "Liquidity",
+        "Risk Assessment",
+        "Return Objective",
         "Glidepath Optimization",
         "Investment Policy Statement"
     ])
@@ -65,38 +65,38 @@ def show_plan_page():
             # Load or create a plan for this client
             load_or_create_plan(selected_client)
     
-    # Risk Assessment tab
+    # Liquidity tab (includes Goals & Cash Flows)
     with plan_tabs[0]:
         if st.session_state.current_plan:
-            show_risk_assessment(selected_client)
-        else:
-            st.info("Select a client to begin planning.")
-    
-    # Return Objective tab
-    with plan_tabs[1]:
-        if st.session_state.current_plan:
-            show_return_objective(selected_client)
+            show_liquidity(selected_client)
         else:
             st.info("Select a client to begin planning.")
     
     # Time Horizon tab
-    with plan_tabs[2]:
+    with plan_tabs[1]:
         if st.session_state.current_plan:
             show_time_horizon(selected_client)
         else:
             st.info("Select a client to begin planning.")
     
     # Tax tab
-    with plan_tabs[3]:
+    with plan_tabs[2]:
         if st.session_state.current_plan:
             show_tax_considerations(selected_client)
         else:
             st.info("Select a client to begin planning.")
     
-    # Liquidity tab (includes Goals & Cash Flows)
+    # Risk Assessment tab
+    with plan_tabs[3]:
+        if st.session_state.current_plan:
+            show_risk_assessment(selected_client)
+        else:
+            st.info("Select a client to begin planning.")
+    
+    # Return Objective tab
     with plan_tabs[4]:
         if st.session_state.current_plan:
-            show_liquidity(selected_client)
+            show_return_objective(selected_client)
         else:
             st.info("Select a client to begin planning.")
     
@@ -432,6 +432,44 @@ def show_return_objective(client):
     st.header("Return Objective")
     
     plan = st.session_state.current_plan
+    
+    # Initialize return objective fields if they don't exist
+    if not hasattr(plan, 'pre_restylement_return'):
+        plan.pre_restylement_return = 7.0  # Default 7% pre-restylement return
+        
+    if not hasattr(plan, 'post_restylement_return'):
+        plan.post_restylement_return = 5.0  # Default 5% post-restylement return
+    
+    # Add pre-restylement and post-restylement return fields
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        pre_restylement_return = st.number_input(
+            "Pre-Restylement Return (%)",
+            min_value=0.0,
+            max_value=15.0,
+            value=plan.pre_restylement_return,
+            step=0.1,
+            format="%.1f",
+            help="Target annual return before restylement (accumulation phase)"
+        )
+    
+    with col2:
+        post_restylement_return = st.number_input(
+            "Post-Restylement Return (%)",
+            min_value=0.0,
+            max_value=15.0,
+            value=plan.post_restylement_return,
+            step=0.1,
+            format="%.1f",
+            help="Target annual return after restylement (distribution phase)"
+        )
+    
+    # Update plan if values changed
+    if pre_restylement_return != plan.pre_restylement_return or post_restylement_return != plan.post_restylement_return:
+        plan.pre_restylement_return = pre_restylement_return
+        plan.post_restylement_return = post_restylement_return
+        save_plan(plan)
     
     st.subheader("Portfolio Return Requirements")
     
