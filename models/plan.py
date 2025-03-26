@@ -177,11 +177,16 @@ class Plan:
         Glidepath allocation over time if optimized
     glidepath_info : dict or None
         Additional information about the glidepath, including capital market assumption details
+    pre_restylement_return : float
+        Target annual return before restylement (accumulation phase)
+    post_restylement_return : float
+        Target annual return after restylement (distribution phase)
     """
     
     def __init__(self, client_id, name, goals=None, cash_flows=None, initial_portfolio=0, 
                  asset_allocation=None, allocation_constraints=None, risk_aversion=3.0, 
-                 mean_reversion_speed=0.15, glidepath=None, glidepath_info=None):
+                 mean_reversion_speed=0.15, glidepath=None, glidepath_info=None,
+                 pre_restylement_return=7.0, post_restylement_return=5.0):
         """
         Initialize a Plan object.
         
@@ -209,6 +214,10 @@ class Plan:
             Glidepath allocation over time if optimized
         glidepath_info : dict or None
             Additional information about the glidepath, including capital market assumption details
+        pre_restylement_return : float
+            Target annual return before restylement (accumulation phase)
+        post_restylement_return : float
+            Target annual return after restylement (distribution phase)
         """
         self.client_id = client_id
         self.name = name
@@ -221,6 +230,8 @@ class Plan:
         self.mean_reversion_speed = mean_reversion_speed
         self.glidepath = glidepath
         self.glidepath_info = glidepath_info
+        self.pre_restylement_return = pre_restylement_return
+        self.post_restylement_return = post_restylement_return
     
     def add_goal(self, goal):
         """
@@ -264,7 +275,9 @@ class Plan:
             'risk_aversion': self.risk_aversion,
             'mean_reversion_speed': self.mean_reversion_speed,
             'glidepath': self.glidepath.tolist() if self.glidepath is not None else None,
-            'glidepath_info': self.glidepath_info
+            'glidepath_info': self.glidepath_info,
+            'pre_restylement_return': self.pre_restylement_return,
+            'post_restylement_return': self.post_restylement_return
         }
     
     @classmethod
@@ -296,5 +309,7 @@ class Plan:
             risk_aversion=data.get('risk_aversion', 3.0),
             mean_reversion_speed=data.get('mean_reversion_speed', 0.15),
             glidepath=data.get('glidepath'),
-            glidepath_info=data.get('glidepath_info')
+            glidepath_info=data.get('glidepath_info'),
+            pre_restylement_return=data.get('pre_restylement_return', 7.0),
+            post_restylement_return=data.get('post_restylement_return', 5.0)
         )
