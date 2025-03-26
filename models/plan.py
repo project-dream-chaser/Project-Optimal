@@ -186,7 +186,8 @@ class Plan:
     def __init__(self, client_id, name, goals=None, cash_flows=None, initial_portfolio=0, 
                  asset_allocation=None, allocation_constraints=None, risk_aversion=3.0, 
                  mean_reversion_speed=0.15, glidepath=None, glidepath_info=None,
-                 pre_restylement_return=7.0, post_restylement_return=5.0):
+                 pre_restylement_return=7.0, post_restylement_return=5.0,
+                 return_objective_scenario='Possibilities', desired_spending=0, desired_legacy=0):
         """
         Initialize a Plan object.
         
@@ -218,6 +219,12 @@ class Plan:
             Target annual return before restylement (accumulation phase)
         post_restylement_return : float
             Target annual return after restylement (distribution phase)
+        return_objective_scenario : str
+            'Possibilities' or 'Specific Spending and Legacy Goal'
+        desired_spending : float
+            Desired annual spending amount at restylement
+        desired_legacy : float
+            Desired legacy amount at end of plan
         """
         self.client_id = client_id
         self.name = name
@@ -232,6 +239,9 @@ class Plan:
         self.glidepath_info = glidepath_info
         self.pre_restylement_return = pre_restylement_return
         self.post_restylement_return = post_restylement_return
+        self.return_objective_scenario = return_objective_scenario
+        self.desired_spending = desired_spending
+        self.desired_legacy = desired_legacy
     
     def add_goal(self, goal):
         """
@@ -277,7 +287,10 @@ class Plan:
             'glidepath': self.glidepath.tolist() if self.glidepath is not None else None,
             'glidepath_info': self.glidepath_info,
             'pre_restylement_return': self.pre_restylement_return,
-            'post_restylement_return': self.post_restylement_return
+            'post_restylement_return': self.post_restylement_return,
+            'return_objective_scenario': self.return_objective_scenario,
+            'desired_spending': self.desired_spending,
+            'desired_legacy': self.desired_legacy
         }
     
     @classmethod
@@ -311,5 +324,8 @@ class Plan:
             glidepath=data.get('glidepath'),
             glidepath_info=data.get('glidepath_info'),
             pre_restylement_return=data.get('pre_restylement_return', 7.0),
-            post_restylement_return=data.get('post_restylement_return', 5.0)
+            post_restylement_return=data.get('post_restylement_return', 5.0),
+            return_objective_scenario=data.get('return_objective_scenario', 'Possibilities'),
+            desired_spending=data.get('desired_spending', 0),
+            desired_legacy=data.get('desired_legacy', 0)
         )

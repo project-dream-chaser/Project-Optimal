@@ -439,37 +439,149 @@ def show_return_objective(client):
         
     if not hasattr(plan, 'post_restylement_return'):
         plan.post_restylement_return = 5.0  # Default 5% post-restylement return
+        
+    if not hasattr(plan, 'return_objective_scenario'):
+        plan.return_objective_scenario = 'Possibilities'
+        
+    if not hasattr(plan, 'desired_spending'):
+        plan.desired_spending = 0
+        
+    if not hasattr(plan, 'desired_legacy'):
+        plan.desired_legacy = 0
     
-    # Add pre-restylement and post-restylement return fields
-    col1, col2 = st.columns(2)
+    # Scenario selection
+    return_objective_scenario = st.selectbox(
+        "Return Objective Scenario",
+        ["Possibilities", "Specific Spending and Legacy Goal"],
+        index=0 if plan.return_objective_scenario == 'Possibilities' else 1,
+        help="Choose how to determine your return objectives"
+    )
     
-    with col1:
-        pre_restylement_return = st.number_input(
-            "Pre-Restylement Return (%)",
-            min_value=0.0,
-            max_value=15.0,
-            value=plan.pre_restylement_return,
-            step=0.1,
-            format="%.1f",
-            help="Target annual return before restylement (accumulation phase)"
-        )
+    plan.return_objective_scenario = return_objective_scenario
     
-    with col2:
-        post_restylement_return = st.number_input(
-            "Post-Restylement Return (%)",
-            min_value=0.0,
-            max_value=15.0,
-            value=plan.post_restylement_return,
-            step=0.1,
-            format="%.1f",
-            help="Target annual return after restylement (distribution phase)"
-        )
+    if return_objective_scenario == 'Possibilities':
+        # Manual entry for pre and post restylement returns
+        st.subheader("Manual Return Targets")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            pre_restylement_return = st.number_input(
+                "Pre-Restylement Return (%)",
+                min_value=0.0,
+                max_value=15.0,
+                value=plan.pre_restylement_return,
+                step=0.1,
+                format="%.1f",
+                help="Target annual return before restylement (accumulation phase)"
+            )
+        
+        with col2:
+            post_restylement_return = st.number_input(
+                "Post-Restylement Return (%)",
+                min_value=0.0,
+                max_value=15.0,
+                value=plan.post_restylement_return,
+                step=0.1,
+                format="%.1f",
+                help="Target annual return after restylement (distribution phase)"
+            )
+            
+        # Update plan if values changed
+        if pre_restylement_return != plan.pre_restylement_return or post_restylement_return != plan.post_restylement_return:
+            plan.pre_restylement_return = pre_restylement_return
+            plan.post_restylement_return = post_restylement_return
+            save_plan(plan)
     
-    # Update plan if values changed
-    if pre_restylement_return != plan.pre_restylement_return or post_restylement_return != plan.post_restylement_return:
-        plan.pre_restylement_return = pre_restylement_return
-        plan.post_restylement_return = post_restylement_return
-        save_plan(plan)
+    else:  # Specific Spending and Legacy Goal
+        st.subheader("Spending and Legacy Goals")
+        
+        # Calculate client's current age
+        from datetime import datetime
+        birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
+        current_year = datetime.now().year
+        current_age = current_year - birth_year
+        
+        # Years to restylement and end of plan
+        years_to_restylement = max(0, client.restylement_age - current_age)
+        years_to_end = max(0, client.longevity_age - current_age)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            desired_spending = st.number_input(
+                f"Desired Annual Spending at Restylement (Age {client.restylement_age}) ($)",
+                min_value=0,
+                value=int(plan.desired_spending) if plan.desired_spending > 0 else 0,
+                step=1000,
+                help="Your desired annual spending amount when you reach restylement age"
+            )
+        
+        with col2:
+            desired_legacy = st.number_input(
+                f"Desired Legacy at End of Plan (Age {client.longevity_age}) ($)",
+                min_value=0,
+                value=int(plan.desired_legacy) if plan.desired_legacy > 0 else 0,
+                step=10000,
+                help="The legacy amount you wish to leave at the end of your plan"
+            )
+        
+        # Update plan if values changed
+        if desired_spending != plan.desired_spending or desired_legacy != plan.desired_legacy:
+            plan.desired_spending = desired_spending
+            plan.desired_legacy = desired_legacy
+            
+            # Calculate required returns using 4% rule
+            if plan.initial_portfolio > 0:
+                if years_to_restylement > 0:
+                    # Calculate pre-restylement return needed
+                    needed_at_restylement = desired_spending * 25  # Using 4% withdrawal rule (100/4 = 25)
+                    growth_rate = ((needed_at_restylement / plan.initial_portfolio) ** (1/years_to_restylement)) - 1
+                    plan.pre_restylement_return = min(15.0, max(0.0, growth_rate * 100))
+                else:
+                    # Already at or past restylement age
+                    plan.pre_restylement_return = 0.0
+                
+                # Calculate post-restylement return needed
+                if years_to_end > 0 and years_to_restylement >= 0:
+                    # Determine what portfolio value will be at restylement
+                    if years_to_restylement > 0:
+                        portfolio_at_restylement = plan.initial_portfolio * ((1 + plan.pre_restylement_return/100) ** years_to_restylement)
+                    else:
+                        portfolio_at_restylement = plan.initial_portfolio
+                    
+                    # Calculate how much is needed for annual spending
+                    spending_needs = desired_spending * ((1 - (1 + 0.03) ** -(years_to_end - years_to_restylement)) / 0.03)
+                    
+                    # Additional amount needed for legacy
+                    remaining_for_legacy = max(0, portfolio_at_restylement - spending_needs)
+                    if remaining_for_legacy < desired_legacy:
+                        # Need growth to reach legacy goal
+                        years_in_restylement = years_to_end - years_to_restylement
+                        if years_in_restylement > 0:
+                            growth_rate = ((desired_legacy / remaining_for_legacy) ** (1/years_in_restylement)) - 1
+                            plan.post_restylement_return = min(15.0, max(0.0, growth_rate * 100))
+                        else:
+                            plan.post_restylement_return = 0.0
+                    else:
+                        # Already have enough for legacy goal, can be conservative
+                        plan.post_restylement_return = 3.0  # Conservative default
+                else:
+                    plan.post_restylement_return = 0.0
+            
+            save_plan(plan)
+        
+        # Display calculated returns
+        st.subheader("Calculated Required Returns")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Pre-Restylement Return (%)", f"{plan.pre_restylement_return:.1f}")
+            
+        with col2:
+            st.metric("Post-Restylement Return (%)", f"{plan.post_restylement_return:.1f}")
+        
+        if plan.initial_portfolio == 0:
+            st.warning("Please enter your Initial Portfolio Value in the Liquidity section to calculate required returns.")
     
     st.subheader("Portfolio Return Requirements")
     
@@ -492,61 +604,6 @@ def show_return_objective(client):
             st.info("Run the Glidepath Optimization to calculate the expected return based on your goals and constraints.")
     else:
         st.info("Add goals and cash flows in the Liquidity section to calculate return requirements.")
-    
-    # Asset Allocation section
-    st.subheader("Current Asset Allocation")
-    
-    asset_classes = [
-        'Global Equity',
-        'Core Bond', 
-        'Short-Term Bond',
-        'Global Credit',
-        'Real Assets',
-        'Liquid Alternatives'
-    ]
-    
-    if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
-        glidepath = st.session_state.glidepath_results['glidepath']
-        if glidepath is not None and len(glidepath) > 0:
-            initial_allocation = glidepath[0]
-            
-            # Display optimized initial allocation as a pie chart
-            fig, ax = plt.subplots(figsize=(6, 4))
-            ax.pie(initial_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
-            ax.axis('equal')
-            ax.set_title('Optimized Initial Asset Allocation')
-            st.pyplot(fig)
-            
-            # Display expected returns for each asset class
-            if 'market_assumptions' in st.session_state:
-                market_assumptions = st.session_state.market_assumptions
-                st.subheader("Expected Returns by Asset Class")
-                
-                returns_data = []
-                for i, asset_class in enumerate(asset_classes):
-                    if asset_class in market_assumptions['long_term']['expected_returns']:
-                        exp_return = market_assumptions['long_term']['expected_returns'][asset_class] * 100
-                        weight = initial_allocation[i] * 100
-                        returns_data.append({
-                            "Asset Class": asset_class,
-                            "Expected Return (%)": f"{exp_return:.2f}",
-                            "Weight (%)": f"{weight:.2f}",
-                            "Contribution (%)": f"{exp_return * weight / 100:.2f}"
-                        })
-                
-                returns_df = pd.DataFrame(returns_data)
-                st.dataframe(returns_df, use_container_width=True, hide_index=True)
-    else:
-        if hasattr(plan, 'asset_allocation') and plan.asset_allocation:
-            st.write("Current allocation (will be optimized when you run the Glidepath Optimization):")
-            # Display current allocation as a pie chart
-            fig, ax = plt.subplots(figsize=(6, 4))
-            ax.pie(plan.asset_allocation, labels=asset_classes, autopct='%1.1f%%', startangle=90)
-            ax.axis('equal')
-            ax.set_title('Current Asset Allocation (Not Optimized)')
-            st.pyplot(fig)
-            
-            st.info("Run the Glidepath Optimization to find the optimal allocation that meets your return objectives.")
 
 def show_time_horizon(client):
     """
