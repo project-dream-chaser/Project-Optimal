@@ -135,28 +135,51 @@ def load_or_create_plan(client):
                 plan_data = json.load(f)
                 
             # Create Plan object from JSON data
-            plan = Plan.from_dict(plan_data)
-            st.session_state.current_plan = plan
+            try:
+                plan = Plan.from_dict(plan_data)
+                st.session_state.current_plan = plan
+                
+                # Initialize session state variables if missing
+                if 'simulation_results' not in st.session_state:
+                    st.session_state.simulation_results = {}
+                
+                if 'glidepath_results' not in st.session_state:
+                    st.session_state.glidepath_results = {}
+                
+                # If we have simulation results, try to load them
+                sim_path = f'data/plans/{client.id}_simulation.json'
+                if os.path.exists(sim_path):
+                    try:
+                        with open(sim_path, 'r') as f:
+                            sim_data = json.load(f)
+                        st.session_state.simulation_results = sim_data
+                    except Exception as e:
+                        st.warning(f"Could not load simulation results: {e}")
+                
+                # If we have glidepath results, try to load them
+                glidepath_path = f'data/plans/{client.id}_glidepath.json'
+                if os.path.exists(glidepath_path):
+                    try:
+                        with open(glidepath_path, 'r') as f:
+                            glidepath_data = json.load(f)
+                            
+                        # Convert lists back to numpy arrays where needed
+                        if 'glidepath' in glidepath_data:
+                            glidepath_data['glidepath'] = np.array(glidepath_data['glidepath'])
+                            
+                        st.session_state.glidepath_results = glidepath_data
+                    except Exception as e:
+                        st.warning(f"Could not load glidepath results: {e}")
+                
+            except Exception as e:
+                st.error(f"Error processing plan data: {e}")
+                # Create a new plan if loading fails
+                create_new_plan(client)
             
-            # If we have simulation results, try to load them
-            sim_path = f'data/plans/{client.id}_simulation.json'
-            if os.path.exists(sim_path):
-                with open(sim_path, 'r') as f:
-                    sim_data = json.load(f)
-                st.session_state.simulation_results = sim_data
-            
-            # If we have glidepath results, try to load them
-            glidepath_path = f'data/plans/{client.id}_glidepath.json'
-            if os.path.exists(glidepath_path):
-                with open(glidepath_path, 'r') as f:
-                    glidepath_data = json.load(f)
-                    
-                # Convert lists back to numpy arrays where needed
-                if 'glidepath' in glidepath_data:
-                    glidepath_data['glidepath'] = np.array(glidepath_data['glidepath'])
-                    
-                st.session_state.glidepath_results = glidepath_data
-            
+        except json.JSONDecodeError as e:
+            st.error(f"Error parsing plan JSON: {e}")
+            # Create a new plan if loading fails
+            create_new_plan(client)
         except Exception as e:
             st.error(f"Error loading plan: {e}")
             # Create a new plan if loading fails
@@ -202,7 +225,12 @@ def create_new_plan(client):
         asset_allocation=[0.5, 0.2, 0.1, 0.1, 0.05, 0.05],  # Default allocation
         allocation_constraints=allocation_constraints,  # Default constraints
         risk_aversion=3.0,  # Default risk aversion
-        mean_reversion_speed=0.15  # Default mean reversion speed
+        mean_reversion_speed=0.15,  # Default mean reversion speed
+        pre_restylement_return=7.0,  # Default pre-restylement return
+        post_restylement_return=5.0,  # Default post-restylement return
+        return_objective_scenario='Possibilities',  # Default scenario
+        desired_spending=0,  # Default desired spending
+        desired_legacy=0  # Default desired legacy
     )
     
     st.session_state.current_plan = plan
@@ -228,23 +256,41 @@ def save_plan(plan):
         # Convert plan to dictionary and save as JSON
         plan_dict = plan.to_dict()
         
+        # Ensure all values are JSON serializable
+        for key, value in plan_dict.items():
+            if isinstance(value, np.ndarray):
+                plan_dict[key] = value.tolist()
+        
         with open(f'data/plans/{plan.client_id}.json', 'w') as f:
-            json.dump(plan_dict, f)
+            json.dump(plan_dict, f, indent=2)
             
         # If we have simulation results, save them too
-        if st.session_state.simulation_results:
-            with open(f'data/plans/{plan.client_id}_simulation.json', 'w') as f:
-                json.dump(st.session_state.simulation_results, f)
+        if 'simulation_results' in st.session_state and st.session_state.simulation_results:
+            try:
+                # Convert any numpy arrays to lists for JSON serialization
+                sim_data = st.session_state.simulation_results.copy()
+                for key, value in sim_data.items():
+                    if isinstance(value, np.ndarray):
+                        sim_data[key] = value.tolist()
+                
+                with open(f'data/plans/{plan.client_id}_simulation.json', 'w') as f:
+                    json.dump(sim_data, f, indent=2)
+            except Exception as e:
+                st.warning(f"Error saving simulation results: {e}")
         
         # If we have glidepath results, save them too
-        if st.session_state.glidepath_results:
-            # Convert numpy arrays to lists for JSON serialization
-            glidepath_dict = st.session_state.glidepath_results.copy()
-            if 'glidepath' in glidepath_dict:
-                glidepath_dict['glidepath'] = glidepath_dict['glidepath'].tolist()
+        if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
+            try:
+                # Convert numpy arrays to lists for JSON serialization
+                glidepath_dict = st.session_state.glidepath_results.copy()
+                for key, value in glidepath_dict.items():
+                    if isinstance(value, np.ndarray):
+                        glidepath_dict[key] = value.tolist()
                 
-            with open(f'data/plans/{plan.client_id}_glidepath.json', 'w') as f:
-                json.dump(glidepath_dict, f)
+                with open(f'data/plans/{plan.client_id}_glidepath.json', 'w') as f:
+                    json.dump(glidepath_dict, f, indent=2)
+            except Exception as e:
+                st.warning(f"Error saving glidepath results: {e}")
                 
     except Exception as e:
         st.error(f"Error saving plan: {e}")
