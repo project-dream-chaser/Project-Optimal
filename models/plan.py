@@ -80,6 +80,88 @@ class CashFlow:
         )
 
 
+class LiquidityGoal:
+    """
+    LiquidityGoal model representing an emergency fund or short-term liquidity need.
+    
+    Attributes:
+    -----------
+    name : str
+        Description of the liquidity goal
+    amount : float
+        Amount needed for the liquidity goal
+    timeframe : str
+        When the liquidity is needed ('Immediate', 'Short-term', 'Medium-term')
+    priority : str
+        Priority of the goal ('High', 'Medium', 'Low')
+    notes : str
+        Additional notes or information about the liquidity goal
+    """
+    
+    def __init__(self, name, amount, timeframe='Short-term', priority='Medium', notes=''):
+        """
+        Initialize a LiquidityGoal object.
+        
+        Parameters:
+        -----------
+        name : str
+            Description of the liquidity goal
+        amount : float
+            Amount needed for the liquidity goal
+        timeframe : str
+            When the liquidity is needed ('Immediate', 'Short-term', 'Medium-term')
+        priority : str
+            Priority of the goal ('High', 'Medium', 'Low')
+        notes : str
+            Additional notes or information about the liquidity goal
+        """
+        self.name = name
+        self.amount = amount
+        self.timeframe = timeframe
+        self.priority = priority
+        self.notes = notes
+    
+    def to_dict(self):
+        """
+        Convert liquidity goal object to dictionary.
+        
+        Returns:
+        --------
+        dict
+            Liquidity goal data as dictionary
+        """
+        return {
+            'name': self.name,
+            'amount': self.amount,
+            'timeframe': self.timeframe,
+            'priority': self.priority,
+            'notes': self.notes
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Create a LiquidityGoal object from dictionary data.
+        
+        Parameters:
+        -----------
+        data : dict
+            Liquidity goal data as dictionary
+            
+        Returns:
+        --------
+        LiquidityGoal
+            New LiquidityGoal object
+        """
+        return cls(
+            name=data.get('name'),
+            amount=data.get('amount'),
+            timeframe=data.get('timeframe', 'Short-term'),
+            priority=data.get('priority', 'Medium'),
+            notes=data.get('notes', '')
+        )
+
+
 class Goal:
     """
     Goal model representing a financial goal in a plan.
@@ -183,7 +265,7 @@ class Plan:
         Target annual return after restylement (distribution phase)
     """
     
-    def __init__(self, client_id, name, goals=None, cash_flows=None, initial_portfolio=0, 
+    def __init__(self, client_id, name, goals=None, cash_flows=None, liquidity_goals=None, initial_portfolio=0, 
                  asset_allocation=None, allocation_constraints=None, risk_aversion=3.0, 
                  mean_reversion_speed=0.15, glidepath=None, glidepath_info=None,
                  pre_restylement_return=7.0, post_restylement_return=5.0,
@@ -201,6 +283,8 @@ class Plan:
             List of Goal objects
         cash_flows : list
             List of CashFlow objects
+        liquidity_goals : list
+            List of LiquidityGoal objects
         initial_portfolio : float
             Starting portfolio value
         asset_allocation : array-like
@@ -230,6 +314,7 @@ class Plan:
         self.name = name
         self.goals = goals or []
         self.cash_flows = cash_flows or []
+        self.liquidity_goals = liquidity_goals or []
         self.initial_portfolio = initial_portfolio
         self.asset_allocation = asset_allocation or [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.allocation_constraints = allocation_constraints or {}
@@ -265,6 +350,17 @@ class Plan:
         """
         self.cash_flows.append(cash_flow)
     
+    def add_liquidity_goal(self, liquidity_goal):
+        """
+        Add a liquidity goal to the plan.
+        
+        Parameters:
+        -----------
+        liquidity_goal : LiquidityGoal
+            Liquidity goal to add
+        """
+        self.liquidity_goals.append(liquidity_goal)
+    
     def to_dict(self):
         """
         Convert plan object to dictionary.
@@ -279,6 +375,7 @@ class Plan:
             'name': self.name,
             'goals': [goal.to_dict() for goal in self.goals],
             'cash_flows': [cf.to_dict() for cf in self.cash_flows],
+            'liquidity_goals': [lg.to_dict() for lg in self.liquidity_goals],
             'initial_portfolio': self.initial_portfolio,
             'asset_allocation': self.asset_allocation,
             'allocation_constraints': self.allocation_constraints,
@@ -310,12 +407,14 @@ class Plan:
         """
         goals = [Goal.from_dict(goal_data) for goal_data in data.get('goals', [])]
         cash_flows = [CashFlow.from_dict(cf_data) for cf_data in data.get('cash_flows', [])]
+        liquidity_goals = [LiquidityGoal.from_dict(lg_data) for lg_data in data.get('liquidity_goals', [])]
         
         return cls(
             client_id=data.get('client_id'),
             name=data.get('name'),
             goals=goals,
             cash_flows=cash_flows,
+            liquidity_goals=liquidity_goals,
             initial_portfolio=data.get('initial_portfolio', 0),
             asset_allocation=data.get('asset_allocation'),
             allocation_constraints=data.get('allocation_constraints', {}),

@@ -9,7 +9,7 @@ import os
 import json
 
 from models.client import Client
-from models.plan import Plan, Goal, CashFlow
+from models.plan import Plan, Goal, CashFlow, LiquidityGoal
 from utils.monte_carlo import run_monte_carlo_simulation, plot_monte_carlo_results, calculate_shortfall_risk
 from utils.optimization import optimize_glidepath, plot_glidepath
 from utils.ips_generator import generate_investment_policy_statement, display_ips_download_button
@@ -221,6 +221,7 @@ def create_new_plan(client):
         name=f"Financial Plan for {client.first_name} {client.last_name}",
         goals=[],
         cash_flows=[],
+        liquidity_goals=[],  # Empty liquidity goals list
         initial_portfolio=100000,  # Default initial portfolio
         asset_allocation=[0.5, 0.2, 0.1, 0.1, 0.05, 0.05],  # Default allocation
         allocation_constraints=allocation_constraints,  # Default constraints
@@ -1340,6 +1341,175 @@ def show_liquidity(client):
     # Liquidity needs section
     st.subheader("Liquidity Needs Assessment")
     
+    # Liquidity Goals section
+    st.write("Liquidity Goals:")
+    st.info("Liquidity goals represent funds that need to be kept in cash or highly liquid investments for specific purposes or time frames.")
+    
+    # Create columns for liquidity goal form
+    lg_col1, lg_col2 = st.columns([2, 1])
+    
+    with lg_col1:
+        new_lg_name = st.text_input("Liquidity Goal Description", key="new_lg_name", 
+                                  placeholder="Ex: Emergency Fund, Home Down Payment, etc.")
+    
+    with lg_col2:
+        new_lg_amount = st.number_input("Amount ($)", key="new_lg_amount", 
+                                     min_value=0, 
+                                     step=5000, 
+                                     value=20000)
+    
+    lg_col3, lg_col4, lg_col5 = st.columns([1, 1, 1])
+    
+    with lg_col3:
+        new_lg_timeframe = st.selectbox("Timeframe", key="new_lg_timeframe",
+                                       options=["Immediate", "Short-term", "Medium-term"],
+                                       index=0,
+                                       help="When these funds are needed: Immediate (now), Short-term (< 1 year), Medium-term (1-3 years)")
+    
+    with lg_col4:
+        new_lg_priority = st.selectbox("Priority", key="new_lg_priority", 
+                                      options=["High", "Medium", "Low"], 
+                                      index=0)
+    
+    with lg_col5:
+        new_lg_notes = st.text_input("Notes", key="new_lg_notes", 
+                                    placeholder="Additional information...")
+    
+    if st.button("Add Liquidity Goal"):
+        if new_lg_name and new_lg_amount > 0:
+            # Import LiquidityGoal at the beginning of this file
+            from models.plan import LiquidityGoal
+            
+            # Add the liquidity goal
+            plan.liquidity_goals.append(LiquidityGoal(
+                name=new_lg_name,
+                amount=new_lg_amount,
+                timeframe=new_lg_timeframe,
+                priority=new_lg_priority,
+                notes=new_lg_notes
+            ))
+            
+            save_plan(plan)
+            st.success(f"Added new liquidity goal: {new_lg_name}")
+            st.rerun()
+        else:
+            st.error("Please enter a goal name and amount greater than zero.")
+    
+    # Display existing liquidity goals
+    if plan.liquidity_goals:
+        st.write("Current Liquidity Goals:")
+        liquidity_goals_data = []
+        for lg in plan.liquidity_goals:
+            liquidity_goals_data.append({
+                "Name": lg.name,
+                "Amount ($)": lg.amount,
+                "Timeframe": lg.timeframe,
+                "Priority": lg.priority,
+                "Notes": lg.notes
+            })
+        
+        # Edit liquidity goals table
+        edited_liquidity_goals = st.data_editor(
+            pd.DataFrame(liquidity_goals_data),
+            column_config={
+                "Name": st.column_config.TextColumn("Description"),
+                "Amount ($)": st.column_config.NumberColumn("Amount ($)", min_value=0, step=1000, format="$%d"),
+                "Timeframe": st.column_config.SelectboxColumn("Timeframe", options=["Immediate", "Short-term", "Medium-term"]),
+                "Priority": st.column_config.SelectboxColumn("Priority", options=["High", "Medium", "Low"]),
+                "Notes": st.column_config.TextColumn("Notes", width="large")
+            },
+            use_container_width=True,
+            num_rows="dynamic",
+            key="liquidity_goals_editor"
+        )
+        
+        # Update liquidity goals in the plan
+        if st.button("Save Liquidity Goal Changes"):
+            new_liquidity_goals = []
+            from models.plan import LiquidityGoal
+            
+            for _, row in edited_liquidity_goals.iterrows():
+                # Only add goals with valid data
+                if pd.notna(row["Name"]) and pd.notna(row["Amount ($)"]) and row["Amount ($)"] > 0:
+                    new_liquidity_goals.append(LiquidityGoal(
+                        name=row["Name"],
+                        amount=row["Amount ($)"],
+                        timeframe=row["Timeframe"],
+                        priority=row["Priority"],
+                        notes=row["Notes"] if pd.notna(row["Notes"]) else ""
+                    ))
+            
+            plan.liquidity_goals = new_liquidity_goals
+            save_plan(plan)
+            st.success("Liquidity goals updated successfully!")
+            st.rerun()
+        
+        # Calculate total liquidity needs
+        total_liquidity = sum(lg.amount for lg in plan.liquidity_goals)
+        st.write(f"Total Liquidity Goals: ${total_liquidity:,.0f}")
+        
+        # Calculate liquidity coverage ratio
+        if initial_portfolio > 0:
+            liquidity_coverage = total_liquidity / initial_portfolio
+            st.write(f"Liquidity Coverage Ratio (Total Liquidity / Portfolio): {liquidity_coverage:.2f}")
+            
+            if liquidity_coverage > 0.5:
+                st.warning("High liquidity ratio: Consider your asset allocation strategy carefully.")
+            else:
+                st.success("Healthy liquidity coverage ratio.")
+    else:
+        # Add quick templates
+        st.write("Suggested Liquidity Goals:")
+        
+        template_col1, template_col2 = st.columns(2)
+        
+        with template_col1:
+            if st.button("Add Emergency Fund"):
+                from models.plan import LiquidityGoal
+                
+                # Calculate recommended emergency fund (if we have expense data)
+                monthly_expenses = 0
+                for cf in plan.cash_flows:
+                    if cf.amount < 0:  # It's an expense
+                        # Convert annual amount to monthly
+                        monthly_amount = abs(cf.amount) / 12
+                        if cf.start_age <= current_age <= cf.end_age:
+                            monthly_expenses += monthly_amount
+                
+                # Use calculated amount or default
+                if monthly_expenses > 0:
+                    emergency_fund = monthly_expenses * 6  # 6 months of expenses
+                else:
+                    emergency_fund = 30000  # Default amount
+                
+                # Add emergency fund goal
+                plan.liquidity_goals.append(LiquidityGoal(
+                    name="Emergency Fund",
+                    amount=emergency_fund,
+                    timeframe="Immediate",
+                    priority="High",
+                    notes="6 months of living expenses for unexpected events"
+                ))
+                
+                save_plan(plan)
+                st.rerun()
+        
+        with template_col2:
+            if st.button("Add Major Purchase Fund"):
+                from models.plan import LiquidityGoal
+                
+                # Add major purchase fund
+                plan.liquidity_goals.append(LiquidityGoal(
+                    name="Major Purchase Fund",
+                    amount=20000,
+                    timeframe="Medium-term",
+                    priority="Medium",
+                    notes="Fund for upcoming major purchases (car, home renovations, etc.)"
+                ))
+                
+                save_plan(plan)
+                st.rerun()
+    
     # Emergency fund calculation
     st.write("Emergency Fund Recommendation:")
     
@@ -1363,7 +1533,7 @@ def show_liquidity(client):
     else:
         st.info("Add expense cash flows to calculate emergency fund recommendations.")
     
-    # Liquidity ratio
+    # Liquidity needed for near-term goals
     if plan.goals:
         st.write("Liquidity Needed for Near-Term Goals:")
         

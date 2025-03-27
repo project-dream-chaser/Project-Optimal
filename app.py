@@ -15,7 +15,7 @@ from utils.market_assumptions import get_market_assumptions
 
 # Configure the Streamlit page
 st.set_page_config(
-    page_title="Financial Advisor Pro",
+    page_title="Financial Planning",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -33,7 +33,6 @@ if 'market_assumptions' not in st.session_state:
     st.session_state.market_assumptions = get_market_assumptions()
 
 # Sidebar navigation
-st.sidebar.title("Financial Advisor Pro")
 st.sidebar.image("https://cdn.jsdelivr.net/npm/feather-icons@4.29.0/dist/icons/bar-chart-2.svg", width=100)
 
 menu = st.sidebar.radio(
@@ -56,4 +55,4 @@ elif menu == "Plan":
 
 # Footer
 st.sidebar.markdown("---")
-st.sidebar.caption("Financial Advisor Pro © 2023")
+st.sidebar.caption("© 2025")
