@@ -309,21 +309,28 @@ def show_risk_assessment(client):
     
     plan = st.session_state.current_plan
     
+    # Calculate client's current age
+    from datetime import datetime
+    
+    def calculate_age(date_of_birth):
+        """Calculate age from date of birth in YYYY-MM-DD format."""
+        birth_date = datetime.strptime(date_of_birth, '%Y-%m-%d')
+        today = datetime.now()
+        age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        return age
+    
+    current_age = calculate_age(client.date_of_birth)
+    
     # Basic client info
     col1, col2 = st.columns(2)
     
     with col1:
-        # Calculate client's current age
-        birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
-        current_year = datetime.now().year
-        current_age = current_year - birth_year
-        
         st.write(f"Client: {client.full_name()}")
         st.write(f"Age: {current_age}")
         
         if client.spouse:
-            spouse_birth_year = datetime.strptime(client.spouse['date_of_birth'], '%Y-%m-%d').year
-            spouse_age = current_year - spouse_birth_year
+            # Calculate spouse age using the same calculate_age function
+            spouse_age = calculate_age(client.spouse['date_of_birth'])
             st.write(f"Spouse: {client.spouse['first_name']} {client.spouse['last_name']}")
             st.write(f"Spouse Age: {spouse_age}")
     
@@ -544,9 +551,15 @@ def show_return_objective(client):
         
         # Calculate client's current age
         from datetime import datetime
-        birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
-        current_year = datetime.now().year
-        current_age = current_year - birth_year
+        
+        def calculate_age(date_of_birth):
+            """Calculate age from date of birth in YYYY-MM-DD format."""
+            birth_date = datetime.strptime(date_of_birth, '%Y-%m-%d')
+            today = datetime.now()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            return age
+        
+        current_age = calculate_age(client.date_of_birth)
         
         # Years to restylement and end of plan
         years_to_restylement = max(0, client.restylement_age - current_age)
@@ -665,7 +678,17 @@ def show_time_horizon(client):
     
     plan = st.session_state.current_plan
     
-    # We already calculated current_age with the calculate_age function above
+    # Calculate client's current age
+    from datetime import datetime
+    
+    def calculate_age(date_of_birth):
+        """Calculate age from date of birth in YYYY-MM-DD format."""
+        birth_date = datetime.strptime(date_of_birth, '%Y-%m-%d')
+        today = datetime.now()
+        age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        return age
+    
+    current_age = calculate_age(client.date_of_birth)
     
     # Restylement and longevity ages
     col1, col2 = st.columns(2)
@@ -763,6 +786,18 @@ def show_tax_considerations(client):
     st.header("Tax Considerations")
     
     plan = st.session_state.current_plan
+    
+    # Calculate client's current age
+    from datetime import datetime
+    
+    def calculate_age(date_of_birth):
+        """Calculate age from date of birth in YYYY-MM-DD format."""
+        birth_date = datetime.strptime(date_of_birth, '%Y-%m-%d')
+        today = datetime.now()
+        age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        return age
+    
+    current_age = calculate_age(client.date_of_birth)
     
     st.subheader("Tax Rates")
     
