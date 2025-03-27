@@ -665,10 +665,7 @@ def show_time_horizon(client):
     
     plan = st.session_state.current_plan
     
-    # Calculate client's current age
-    birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
-    current_year = datetime.now().year
-    current_age = current_year - birth_year
+    # We already calculated current_age with the calculate_age function above
     
     # Restylement and longevity ages
     col1, col2 = st.columns(2)
@@ -924,6 +921,25 @@ def show_liquidity(client):
     
     plan = st.session_state.current_plan
     
+    if not plan or not client:
+        st.warning("Please select a client to begin planning.")
+        return
+        
+    # Import necessary models
+    from models.plan import Goal, CashFlow, LiquidityGoal
+    from datetime import datetime
+    
+    # Define a function to calculate age
+    def calculate_age(date_of_birth):
+        """Calculate age from date of birth in YYYY-MM-DD format."""
+        birth_date = datetime.strptime(date_of_birth, '%Y-%m-%d')
+        today = datetime.now()
+        age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        return age
+    
+    # Calculate client's current age
+    current_age = calculate_age(client.date_of_birth)
+    
     # Basic Plan Info
     st.subheader("Portfolio Value")
     
@@ -938,11 +954,6 @@ def show_liquidity(client):
     if initial_portfolio != plan.initial_portfolio:
         plan.initial_portfolio = initial_portfolio
         save_plan(plan)
-    
-    # Calculate client's current age
-    birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
-    current_year = datetime.now().year
-    current_age = current_year - birth_year
     
     # Financial Goals
     st.subheader("Financial Goals")
