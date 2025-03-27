@@ -1035,15 +1035,95 @@ def show_liquidity(client):
                     priority=row["Priority"]
                 ))
         
-        # Only update if there are changes
-        if len(new_goals) != len(plan.goals) or any(new_goals[i].name != plan.goals[i].name or 
-                                                new_goals[i].amount != plan.goals[i].amount or
-                                                new_goals[i].age != plan.goals[i].age or
-                                                new_goals[i].priority != plan.goals[i].priority 
-                                                for i in range(min(len(new_goals), len(plan.goals)))):
+        if st.button("Save Goal Changes"):
             plan.goals = new_goals
             save_plan(plan)
             st.success("Goals updated successfully!")
+            st.rerun()
+            
+        # Goals Summary
+        st.subheader("Goals Summary")
+        
+        # Group goals by age
+        goals_by_age = {}
+        for goal in plan.goals:
+            age_key = goal.age
+            if age_key not in goals_by_age:
+                goals_by_age[age_key] = []
+            goals_by_age[age_key].append(goal)
+        
+        # Create a timeline of goals
+        goal_ages = sorted(goals_by_age.keys())
+        if goal_ages:
+            goal_timeline_data = []
+            for age in goal_ages:
+                age_goals = goals_by_age[age]
+                total_amount = sum(goal.amount for goal in age_goals)
+                years_away = age - current_age
+                
+                goal_timeline_data.append({
+                    "Age": age,
+                    "Years From Now": years_away,
+                    "Number of Goals": len(age_goals),
+                    "Total Amount ($)": total_amount,
+                    "Goals": ", ".join([f"{goal.name} (${goal.amount:,.0f})" for goal in age_goals])
+                })
+            
+            # Display timeline table
+            st.dataframe(
+                pd.DataFrame(goal_timeline_data),
+                column_config={
+                    "Age": st.column_config.NumberColumn("Age"),
+                    "Years From Now": st.column_config.NumberColumn("Years From Now"),
+                    "Number of Goals": st.column_config.NumberColumn("# Goals"),
+                    "Total Amount ($)": st.column_config.NumberColumn("Total Amount", format="$%d"),
+                    "Goals": st.column_config.TextColumn("Details", width="large")
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Display total goals amount
+            total_goals_amount = sum(goal.amount for goal in plan.goals)
+            st.write(f"Total Goal Funding Needed: ${total_goals_amount:,.0f}")
+            
+            # Compare with portfolio value
+            if initial_portfolio > 0:
+                goals_to_portfolio_ratio = total_goals_amount / initial_portfolio
+                st.write(f"Goals to Portfolio Ratio: {goals_to_portfolio_ratio:.2f}")
+                
+                if goals_to_portfolio_ratio > 2.0:
+                    st.warning("Your goals may require significant portfolio growth or additional contributions.")
+                elif goals_to_portfolio_ratio > 1.0:
+                    st.info("Your goals require moderate portfolio growth to be fully funded.")
+                else:
+                    st.success("Your current portfolio appears adequate for your goals.")
+        
+        # Add a visual representation of goals
+        if st.checkbox("Show Goals Timeline Chart", value=False):
+            # Prepare data for chart
+            goal_years = [goal.age - current_age for goal in plan.goals]
+            goal_amounts = [goal.amount for goal in plan.goals]
+            goal_names = [goal.name for goal in plan.goals]
+            
+            # Create chart
+            fig, ax = plt.subplots(figsize=(10, 5))
+            bars = ax.bar(goal_years, goal_amounts)
+            
+            # Add labels
+            ax.set_xlabel('Years From Now')
+            ax.set_ylabel('Amount ($)')
+            ax.set_title('Goals Timeline')
+            
+            # Add data labels
+            for i, bar in enumerate(bars):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 5000,
+                        f'${goal_amounts[i]:,.0f}',
+                        ha='center', va='bottom', rotation=0)
+            
+            # Display chart
+            st.pyplot(fig)
     
     # Cash Flows
     st.subheader("Cash Flows")
@@ -1257,6 +1337,108 @@ def show_liquidity(client):
                     st.write(f"Current Withdrawal Rate: {current_withdrawal_rate:.2f}%")
             else:
                 st.info("No withdrawals defined. Add a negative cash flow as a withdrawal.")
+                
+        # Overall Cash Flow Summary
+        st.subheader("Cash Flow Summary")
+        
+        # Create cash flow projection by age
+        if plan.cash_flows:
+            # Calculate years in plan
+            max_age = max(cf.end_age for cf in plan.cash_flows)
+            years_in_plan = max_age - current_age
+            
+            # Initialize arrays for projection
+            ages = list(range(current_age, max_age + 1))
+            net_cash_flows = []
+            contrib_cash_flows = []
+            withdraw_cash_flows = []
+            
+            # Calculate cash flow for each year
+            for age in ages:
+                # Calculate contributions for this age
+                contribution = sum(cf.amount * (1 + cf.growth_rate)**(age - cf.start_age) 
+                              for cf in plan.cash_flows 
+                              if cf.amount > 0 and cf.start_age <= age <= cf.end_age)
+                
+                # Calculate withdrawals for this age
+                withdrawal = sum(cf.amount * (1 + cf.growth_rate)**(age - cf.start_age) 
+                            for cf in plan.cash_flows 
+                            if cf.amount < 0 and cf.start_age <= age <= cf.end_age)
+                
+                # Net cash flow
+                net_cash_flow = contribution + withdrawal  # withdrawal is already negative
+                
+                contrib_cash_flows.append(contribution)
+                withdraw_cash_flows.append(abs(withdrawal))  # Use absolute value for display
+                net_cash_flows.append(net_cash_flow)
+            
+            # Create projection table
+            projection_data = []
+            for i, age in enumerate(ages):
+                projection_data.append({
+                    "Age": age,
+                    "Years From Now": age - current_age,
+                    "Contributions ($)": contrib_cash_flows[i],
+                    "Withdrawals ($)": withdraw_cash_flows[i],
+                    "Net Cash Flow ($)": net_cash_flows[i]
+                })
+            
+            # Display table
+            st.write("Annual Cash Flow Projection:")
+            st.dataframe(
+                pd.DataFrame(projection_data),
+                column_config={
+                    "Age": st.column_config.NumberColumn("Age"),
+                    "Years From Now": st.column_config.NumberColumn("Years From Now"),
+                    "Contributions ($)": st.column_config.NumberColumn("Contributions", format="$%d"),
+                    "Withdrawals ($)": st.column_config.NumberColumn("Withdrawals", format="$%d"),
+                    "Net Cash Flow ($)": st.column_config.NumberColumn("Net Cash Flow", format="$%d")
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Cash flow chart
+            if st.checkbox("Show Cash Flow Chart", value=False):
+                # Years from now for x-axis
+                years = [age - current_age for age in ages]
+                
+                # Create figure
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                # Plot contributions as positive bars
+                ax.bar(years, contrib_cash_flows, color='green', alpha=0.7, label='Contributions')
+                
+                # Plot withdrawals as negative bars
+                ax.bar(years, [-w for w in withdraw_cash_flows], color='red', alpha=0.7, label='Withdrawals')
+                
+                # Plot net cash flow as a line
+                ax.plot(years, net_cash_flows, color='blue', marker='o', label='Net Cash Flow')
+                
+                # Add a horizontal line at y=0
+                ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+                
+                # Add labels and title
+                ax.set_xlabel('Years From Now')
+                ax.set_ylabel('Amount ($)')
+                ax.set_title('Cash Flow Projection')
+                ax.legend()
+                
+                # Add retirement age vertical line if available
+                restylement_age = client.restylement_age if hasattr(client, 'restylement_age') else 65
+                restylement_year = restylement_age - current_age
+                if restylement_year > 0:
+                    ax.axvline(x=restylement_year, color='purple', linestyle='--', alpha=0.7)
+                    ax.text(restylement_year, ax.get_ylim()[1]*0.9, 'Restylement', rotation=90, verticalalignment='top')
+                
+                # Format y-axis with dollar signs
+                import matplotlib.ticker as mtick
+                fmt = '${x:,.0f}'
+                tick = mtick.StrMethodFormatter(fmt)
+                ax.yaxis.set_major_formatter(tick)
+                
+                # Display chart
+                st.pyplot(fig)
     else:
         # Add quick sample cash flows
         st.write("Quick Templates:")
