@@ -49,14 +49,14 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     # Create styles
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
-        name='Heading1',
-        parent=styles['Heading1'],
+        name='IPSHeading1',
+        parent=styles['IPSHeading1'],
         fontSize=16,
         spaceAfter=12
     ))
     styles.add(ParagraphStyle(
-        name='Heading2',
-        parent=styles['Heading2'],
+        name='IPSHeading2',
+        parent=styles['IPSHeading2'],
         fontSize=14,
         spaceAfter=10
     ))
@@ -72,12 +72,12 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     
     # Title
     story.append(Paragraph(f"Investment Policy Statement", styles['Title']))
-    story.append(Paragraph(f"For: {client.first_name} {client.last_name}", styles['Heading1']))
+    story.append(Paragraph(f"For: {client.first_name} {client.last_name}", styles['IPSHeading1']))
     story.append(Paragraph(f"Date: {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
     story.append(Spacer(1, 0.25*inch))
     
     # 1. Introduction
-    story.append(Paragraph("1. Introduction", styles['Heading1']))
+    story.append(Paragraph("1. Introduction", styles['IPSHeading1']))
     story.append(Paragraph(
         "This Investment Policy Statement (IPS) is designed to establish a clear understanding of "
         "the investment objectives and policies applicable to the investor's portfolio. This IPS "
@@ -87,7 +87,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 2. Risk Profile
-    story.append(Paragraph("2. Risk Profile", styles['Heading1']))
+    story.append(Paragraph("2. Risk Profile", styles['IPSHeading1']))
     story.append(Paragraph(
         f"Based on the completed risk assessment questionnaire, the investor's risk profile "
         f"is classified as <b>{risk_profile}</b>. This profile reflects the investor's "
@@ -96,7 +96,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     ))
     
     # Add risk factors
-    story.append(Paragraph("Key Risk Factors:", styles['Heading2']))
+    story.append(Paragraph("Key Risk Factors:", styles['IPSHeading2']))
     
     risk_items = [
         "Market Risk: Possibility of investment losses due to market movements",
@@ -111,7 +111,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 3. Return Expectations
-    story.append(Paragraph("3. Return Expectations", styles['Heading1']))
+    story.append(Paragraph("3. Return Expectations", styles['IPSHeading1']))
     
     # Calculate expected return from glidepath
     initial_allocation = glidepath_result['glidepath'][0]
@@ -148,7 +148,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 4. Time Horizon
-    story.append(Paragraph("4. Time Horizon", styles['Heading1']))
+    story.append(Paragraph("4. Time Horizon", styles['IPSHeading1']))
     
     # Calculate client's age and retirement age
     current_year = datetime.now().year
@@ -167,7 +167,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     # Time horizon breakdown
     years_to_retirement = max(0, retirement_age - current_age)
     
-    story.append(Paragraph("Investment Time Horizons:", styles['Heading2']))
+    story.append(Paragraph("Investment Time Horizons:", styles['IPSHeading2']))
     
     time_data = [
         ["Time Horizon", "Years", "Purpose"],
@@ -190,7 +190,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 5. Tax Considerations
-    story.append(Paragraph("5. Tax Considerations", styles['Heading1']))
+    story.append(Paragraph("5. Tax Considerations", styles['IPSHeading1']))
     story.append(Paragraph(
         "The investment strategy will consider tax implications and aim to maximize after-tax "
         "returns. This will be achieved through:",
@@ -210,7 +210,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 6. Liquidity Requirements
-    story.append(Paragraph("6. Liquidity Requirements", styles['Heading1']))
+    story.append(Paragraph("6. Liquidity Requirements", styles['IPSHeading1']))
     story.append(Paragraph(
         "The portfolio will maintain sufficient liquidity to meet expected and unexpected "
         "cash flow needs without disrupting the long-term investment strategy:",
@@ -229,7 +229,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 7. Unique Circumstances
-    story.append(Paragraph("7. Unique Circumstances and Constraints", styles['Heading1']))
+    story.append(Paragraph("7. Unique Circumstances and Constraints", styles['IPSHeading1']))
     story.append(Paragraph(
         "The following unique circumstances, preferences, and constraints have been considered in developing this investment policy:",
         styles['Normal']
@@ -248,7 +248,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 8. Asset Allocation
-    story.append(Paragraph("8. Strategic Asset Allocation", styles['Heading1']))
+    story.append(Paragraph("8. Strategic Asset Allocation", styles['IPSHeading1']))
     story.append(Paragraph(
         "Based on the investor's risk profile, time horizon, and financial goals, the following "
         "strategic asset allocation is recommended:",
@@ -298,7 +298,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 9. Glidepath Strategy
-    story.append(Paragraph("9. Glidepath Strategy", styles['Heading1']))
+    story.append(Paragraph("9. Glidepath Strategy", styles['IPSHeading1']))
     story.append(Paragraph(
         "The investment strategy includes a glidepath approach that will gradually adjust the "
         "asset allocation over time to reduce risk as the investor approaches and enters restylement. "
@@ -371,7 +371,7 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     story.append(Spacer(1, 0.15*inch))
     
     # 10. Monitoring and Review
-    story.append(Paragraph("10. Monitoring and Review", styles['Heading1']))
+    story.append(Paragraph("10. Monitoring and Review", styles['IPSHeading1']))
     story.append(Paragraph(
         "This Investment Policy Statement will be reviewed at least annually and updated as needed "
         "based on changes in the investor's financial situation, goals, or market conditions. "
