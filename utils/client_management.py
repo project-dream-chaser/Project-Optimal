@@ -15,13 +15,15 @@ def load_clients():
                 clients = []
                 for client_data in clients_data:
                     client = Client(
-                        client_data.get('id'),
-                        client_data.get('first_name'),
-                        client_data.get('last_name'),
-                        client_data.get('email'),
-                        client_data.get('date_of_birth'),
-                        client_data.get('risk_score'),
-                        client_data.get('spouse')
+                        id=client_data.get('id'),
+                        first_name=client_data.get('first_name'),
+                        last_name=client_data.get('last_name'),
+                        email=client_data.get('email'),
+                        date_of_birth=client_data.get('date_of_birth'),
+                        max_stock_pct=client_data.get('max_stock_pct'),
+                        spouse=client_data.get('spouse'),
+                        restylement_age=client_data.get('restylement_age', 65),
+                        longevity_age=client_data.get('longevity_age', 95)
                     )
                     clients.append(client)
                 return clients
