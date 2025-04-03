@@ -48,24 +48,30 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     
     # Create styles
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(
+    
+    # Define custom styles based on existing ones
+    ips_heading1 = ParagraphStyle(
         name='IPSHeading1',
         parent=styles['Heading1'],
         fontSize=16,
         spaceAfter=12
-    ))
-    styles.add(ParagraphStyle(
+    )
+    
+    ips_heading2 = ParagraphStyle(
         name='IPSHeading2',
         parent=styles['Heading2'],
         fontSize=14,
         spaceAfter=10
-    ))
-    styles.add(ParagraphStyle(
-        name='Normal',
-        parent=styles['Normal'],
-        fontSize=11,
-        spaceAfter=8
-    ))
+    )
+    
+    # Modify the normal style instead of adding a new one with the same name
+    normal_style = styles['Normal']
+    normal_style.fontSize = 11
+    normal_style.spaceAfter = 8
+    
+    # Add custom styles to the stylesheet
+    styles.add(ips_heading1)
+    styles.add(ips_heading2)
     
     # Create story (content)
     story = []
