@@ -2260,13 +2260,24 @@ def show_glidepath_optimization(client):
     
     # Description of what this does
     st.markdown("""
-    The Glidepath Optimization feature determines the optimal asset allocation strategy that **minimizes shortfall risk**
-    (the probability of running out of money) throughout your lifetime. It creates a multi-period allocation strategy 
-    that adjusts over time based on your changing financial needs and risk profile.
+    The Glidepath Optimization feature determines the optimal asset allocation strategy based on a dynamic optimization hierarchy 
+    that changes as you approach restylement. It creates a multi-period allocation strategy that adjusts over time based 
+    on your changing financial needs and risk profile.
     
-    The optimization uses two key time periods:
-    - **7-year mean reversion**: The optimization starts with short-term capital market assumptions that gradually blend to long-term assumptions over a 7-year period.
-    - **7-year pre-restylement protection**: Within 7 years of restylement, the optimization increasingly prioritizes capital preservation by putting greater weight on shortfall risk reduction.
+    The optimization uses a dual approach with different priorities at different stages:
+    
+    **More than 7 years from restylement**:
+    1. Prioritize achieving pre-restylement return target from Return Objective tab
+    2. Consider expected wealth accumulation as secondary goal
+    3. Monitor basic shortfall risk with lower weighting
+    
+    **Within 7 years of restylement**:
+    1. Prioritize shortfall risk reduction (weight increases as restylement approaches)
+    2. Focus on post-restylement return target from Return Objective tab
+    3. Increasingly emphasize capital preservation
+    
+    **Throughout all periods**:
+    - **7-year mean reversion**: Short-term capital market assumptions gradually blend to long-term assumptions over a 7-year period
     """)
     
     plan = st.session_state.current_plan

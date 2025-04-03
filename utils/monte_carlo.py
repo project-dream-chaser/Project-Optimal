@@ -140,6 +140,10 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
                 long_term_cov[i, j] = long_term_vols[i] * long_term_vols[j] * long_term_corr[i, j]
     
     # Run simulations
+    # Track average returns for each year across all simulations
+    avg_returns = np.zeros(years_to_simulate + 1)
+    avg_return_count = np.zeros(years_to_simulate + 1)
+    
     for sim in range(num_simulations):
         current_portfolio = initial_portfolio
         
@@ -150,8 +154,12 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
             current_allocation = asset_allocation
             
         # Use short-term returns and covariance for year 0
+        # Make sure we're properly using the short-term view initially
         current_expected_return = np.dot(current_allocation, short_term_returns)
         current_vol = np.sqrt(np.dot(current_allocation, np.dot(short_term_cov, current_allocation)))
+        
+        # Track the realized returns for each year in this simulation
+        realized_returns = np.zeros(years_to_simulate + 1)
         
         # Initialize market valuation ratio (P/E or CAPE)
         # Start with a slight overvaluation (1.1x fair value)
@@ -211,11 +219,18 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
             shock = np.random.standard_t(df) / np.sqrt(df / (df-2))  # Standardized to match volatility
             yearly_return = current_expected_return + shock * current_vol
             
+            # Track the realized returns
+            realized_returns[year] = yearly_return
+            
             # Update portfolio value
             current_portfolio = current_portfolio * (1 + yearly_return) + cash_flows - goal_withdrawals
             current_portfolio = max(0, current_portfolio)  # Portfolio can't go negative
             
             portfolio_paths[sim, year] = current_portfolio
+            
+            # Accumulate returns for calculating averages across all simulations
+            avg_returns[year] += yearly_return
+            avg_return_count[year] += 1
             
             # Calculate target wealth path
             # For simplicity: linear growth to target retirement wealth
@@ -256,6 +271,12 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
         'median': np.percentile(target_wealth_paths, 50, axis=0)
     }
     
+    # Calculate average returns for each year
+    avg_returns_final = np.zeros(years_to_simulate + 1)
+    for year in range(years_to_simulate + 1):
+        if avg_return_count[year] > 0:
+            avg_returns_final[year] = avg_returns[year] / avg_return_count[year]
+    
     return {
         'success_probability': success_probability,
         'retirement_success_probability': retirement_success,
@@ -264,7 +285,8 @@ def run_monte_carlo_simulation(client, plan, market_assumptions, num_simulations
         'percentiles': percentiles,
         'target_percentiles': target_percentiles,
         'years': list(range(years_to_simulate + 1)),
-        'ages': list(range(current_age, max_age + 1))
+        'ages': list(range(current_age, max_age + 1)),
+        'avg_returns': avg_returns_final  # Include average returns for each year
     }
 
 def plot_monte_carlo_results(results, client_name):

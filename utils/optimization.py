@@ -150,21 +150,76 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
         
         # Determine if we're within 7 years of restylement
         years_to_retirement = retirement_age - current_age
-        # Increase weight on shortfall risk as we approach restylement
-        shortfall_weight_multiplier = 1.0
+        
+        # Get target returns from the plan
+        pre_restylement_return_target = plan.pre_restylement_return / 100.0 if hasattr(plan, 'pre_restylement_return') else 0.07
+        post_restylement_return_target = plan.post_restylement_return / 100.0 if hasattr(plan, 'post_restylement_return') else 0.05
+        
+        # Calculate the actual returns for pre and post restylement periods
+        pre_restylement_actual_return = 0.0
+        post_restylement_actual_return = 0.0
+        pre_restylement_count = 0
+        post_restylement_count = 0
+        
+        # Find the actual returns in the simulations
+        for t, age in enumerate(range(current_age, max_age + 1)):
+            if t < len(sim_results['avg_returns']):
+                # Pre-restylement period
+                if age < retirement_age:
+                    pre_restylement_actual_return += sim_results['avg_returns'][t]
+                    pre_restylement_count += 1
+                # Post-restylement period
+                else:
+                    post_restylement_actual_return += sim_results['avg_returns'][t]
+                    post_restylement_count += 1
+        
+        # Calculate average returns
+        if pre_restylement_count > 0:
+            pre_restylement_actual_return /= pre_restylement_count
+        if post_restylement_count > 0:
+            post_restylement_actual_return /= post_restylement_count
+        
+        # Calculate return deviations (squared to penalize both too high and too low)
+        pre_restylement_return_deviation = (pre_restylement_actual_return - pre_restylement_return_target) ** 2
+        post_restylement_return_deviation = (post_restylement_actual_return - post_restylement_return_target) ** 2
+        
+        # Different optimization hierarchy based on years to restylement
         if years_to_retirement <= 7:
+            # Within 7 years of restylement:
+            # 1. Prioritize shortfall risk (increasingly as we get closer)
+            # 2. Then post-restylement return target
+            
             # Gradually increase weight on shortfall risk in last 7 years before restylement
             # Weight increases from 1x to 3x as we approach restylement
             shortfall_weight_multiplier = 1.0 + (2.0 * (1.0 - years_to_retirement / 7.0))
-        
-        # Composite objective with different risk aversion above/below target
-        # Apply increased shortfall weight multiplier within 7 years of restylement
-        shortfall_component = risk_metrics['shortfall_probability'] * below_target_risk_aversion * shortfall_weight_multiplier
-        lifestyle_component = risk_metrics['lifestyle_reduction'] * below_target_risk_aversion * shortfall_weight_multiplier
-        wealth_component = -normalized_wealth * (1/above_target_risk_aversion)  # Negative because we're maximizing
-        
-        # Combined objective (components weighted by shortfall multiplier for near-restylement periods)
-        return shortfall_component + lifestyle_component + wealth_component
+            
+            # Components with different risk aversion and weighting
+            shortfall_component = risk_metrics['shortfall_probability'] * below_target_risk_aversion * shortfall_weight_multiplier
+            lifestyle_component = risk_metrics['lifestyle_reduction'] * below_target_risk_aversion * shortfall_weight_multiplier
+            
+            # Post-restylement return component (secondary priority for near-restylement)
+            # Deviation from target return (both too high and too low are penalized)
+            post_return_component = post_restylement_return_deviation * 20.0  # Weight to balance with other components
+            
+            # Combined objective for near-restylement periods
+            return shortfall_component + lifestyle_component + post_return_component
+        else:
+            # More than 7 years from restylement:
+            # 1. Prioritize pre-restylement return target
+            # 2. Consider wealth component as secondary
+            
+            # Pre-restylement return component (primary priority for far-from-restylement)
+            # Deviation from target return (both too high and too low are penalized)
+            pre_return_component = pre_restylement_return_deviation * 30.0  # Higher weight to make this primary
+            
+            # Wealth component still considered but secondary
+            wealth_component = -normalized_wealth * (1/above_target_risk_aversion)  # Negative because we're maximizing
+            
+            # Basic shortfall risk still included but with lower weight
+            basic_shortfall = risk_metrics['shortfall_probability'] * below_target_risk_aversion * 0.5  # Half weight
+            
+            # Combined objective for far-from-restylement periods
+            return pre_return_component + basic_shortfall + wealth_component
     
     # Generate smarter initial guess based on conventional allocation rules
     # Typical rule: % stocks = 110 - age or 100 - age
