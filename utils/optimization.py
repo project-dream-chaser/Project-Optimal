@@ -148,12 +148,22 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
         # Use target retirement wealth as a reference point
         normalized_wealth = min(expected_final_wealth / target_retirement_wealth, 2.0)
         
+        # Determine if we're within 7 years of restylement
+        years_to_retirement = retirement_age - current_age
+        # Increase weight on shortfall risk as we approach restylement
+        shortfall_weight_multiplier = 1.0
+        if years_to_retirement <= 7:
+            # Gradually increase weight on shortfall risk in last 7 years before restylement
+            # Weight increases from 1x to 3x as we approach restylement
+            shortfall_weight_multiplier = 1.0 + (2.0 * (1.0 - years_to_retirement / 7.0))
+        
         # Composite objective with different risk aversion above/below target
-        shortfall_component = risk_metrics['shortfall_probability'] * below_target_risk_aversion
-        lifestyle_component = risk_metrics['lifestyle_reduction'] * below_target_risk_aversion
+        # Apply increased shortfall weight multiplier within 7 years of restylement
+        shortfall_component = risk_metrics['shortfall_probability'] * below_target_risk_aversion * shortfall_weight_multiplier
+        lifestyle_component = risk_metrics['lifestyle_reduction'] * below_target_risk_aversion * shortfall_weight_multiplier
         wealth_component = -normalized_wealth * (1/above_target_risk_aversion)  # Negative because we're maximizing
         
-        # Combined objective (all components equally weighted)
+        # Combined objective (components weighted by shortfall multiplier for near-restylement periods)
         return shortfall_component + lifestyle_component + wealth_component
     
     # Generate smarter initial guess based on conventional allocation rules
@@ -282,7 +292,9 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
         'short_term_source': 'Current market conditions (short-term capital market assumptions)',
         'long_term_source': 'Equilibrium expectations (long-term capital market assumptions)',
         'mean_reversion_years': 7,
-        'time_varying_returns': True
+        'time_varying_returns': True,
+        'shortfall_risk_years': 7,
+        'shortfall_risk_description': 'Weight on shortfall risk increases in the 7 years before restylement to ensure capital preservation as the transition to restylement approaches'
     }
     
     # Run a final simulation with the optimized glidepath
@@ -417,6 +429,13 @@ def plot_glidepath(glidepath_result):
             
     if retirement_index is not None:
         ax1.axvline(x=retirement_age, color='r', linestyle='--', alpha=0.7, label='Restylement Age')
+        
+    # Add shaded area for 7 years before restylement to show increased weight on shortfall risk
+    if retirement_index is not None and retirement_index >= 7:
+        # Get x-coordinates for shaded area (7 years before restylement)
+        shortfall_risk_start = retirement_age - 7
+        ax1.axvspan(shortfall_risk_start, retirement_age, alpha=0.15, color='red', 
+                   label='Increased Shortfall Risk Weight')
     
     # Add labels and title
     ax1.set_xlabel('Age')

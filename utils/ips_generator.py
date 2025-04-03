@@ -323,6 +323,15 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
             styles['Normal']
         ))
         
+        # Add information about 7-year shortfall risk protection
+        story.append(Paragraph(
+            "<b>Pre-Restylement Protection Strategy:</b> Within 7 years of restylement, the optimization increasingly "
+            "prioritizes capital preservation by placing greater weight on shortfall risk reduction. This approach "
+            "helps protect accumulated wealth as you approach the transition to restylement, when the ability to "
+            "recover from market downturns is reduced.",
+            styles['Normal']
+        ))
+        
         # Add information about sustainable withdrawal rate if available
         if 'sustainable_withdrawal_rate' in glidepath_result:
             swr = glidepath_result['sustainable_withdrawal_rate'] * 100
@@ -353,6 +362,12 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     
     # Add vertical line for retirement age
     ax.axvline(x=retirement_age, color='r', linestyle='--', alpha=0.7, label='Restylement Age')
+    
+    # Add shaded area for 7 years before restylement
+    shortfall_risk_start = retirement_age - 7
+    if shortfall_risk_start >= ages[0]:
+        ax.axvspan(shortfall_risk_start, retirement_age, alpha=0.15, color='red', 
+                  label='Increased Shortfall Risk Focus')
     
     ax.set_xlabel('Age')
     ax.set_ylabel('Allocation (%)')

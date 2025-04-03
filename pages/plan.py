@@ -2263,6 +2263,10 @@ def show_glidepath_optimization(client):
     The Glidepath Optimization feature determines the optimal asset allocation strategy that **minimizes shortfall risk**
     (the probability of running out of money) throughout your lifetime. It creates a multi-period allocation strategy 
     that adjusts over time based on your changing financial needs and risk profile.
+    
+    The optimization uses two key time periods:
+    - **7-year mean reversion**: The optimization starts with short-term capital market assumptions that gradually blend to long-term assumptions over a 7-year period.
+    - **7-year pre-restylement protection**: Within 7 years of restylement, the optimization increasingly prioritizes capital preservation by putting greater weight on shortfall risk reduction.
     """)
     
     plan = st.session_state.current_plan
@@ -2293,15 +2297,18 @@ def show_glidepath_optimization(client):
             key="glidepath_max_age"
         )
     
+    # Calculate years until restylement and set periods equal to that
+    # Get client's current age
+    current_year = datetime.now().year
+    birth_year = datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
+    current_age = current_year - birth_year
+    
+    # Calculate years until restylement
+    years_to_restylement = max(1, client.restylement_age - current_age)
+    
+    # Display calculated number of periods
     with col3:
-        num_periods = st.number_input(
-            "Number of Glidepath Periods",
-            min_value=5,
-            max_value=20,
-            value=10,
-            step=1,
-            help="How many allocation adjustments over the lifetime of the plan"
-        )
+        st.info(f"Number of glidepath periods: {years_to_restylement} (automatically set to match years until restylement)")
     
     # Button to run the optimization
     if st.button("Optimize Glidepath"):
@@ -2316,7 +2323,7 @@ def show_glidepath_optimization(client):
                 market_assumptions,
                 num_simulations=num_simulations,
                 max_age=max_age,
-                num_periods=num_periods
+                num_periods=years_to_restylement
             )
             
             # Store the results
