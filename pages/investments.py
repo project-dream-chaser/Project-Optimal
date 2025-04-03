@@ -42,8 +42,21 @@ def show_market_assumptions():
         # Update the market assumptions in session state
         market_assumptions["short_term"] = short_term_assumptions
         market_assumptions["long_term"] = long_term_assumptions
+        
+        # Add debugging information
+        st.info("Saving market assumptions...")
+        st.write("Short-term expected return for Global Equity:", 
+                market_assumptions["short_term"]["expected_returns"]["Global Equity"])
+        st.write("Long-term expected return for Global Equity:", 
+                market_assumptions["long_term"]["expected_returns"]["Global Equity"])
+                
         update_market_assumptions(market_assumptions)
-        st.success("Market assumptions updated successfully!")
+        
+        # Verify data was saved by checking if the file exists
+        import os
+        if os.path.exists('data/market_assumptions.json'):
+            file_size = os.path.getsize('data/market_assumptions.json')
+            st.success(f"Market assumptions updated successfully! File size: {file_size} bytes")
 
 def edit_assumptions(market_assumptions, view):
     """

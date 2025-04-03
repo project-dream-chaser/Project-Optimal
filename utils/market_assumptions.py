@@ -211,6 +211,21 @@ def update_market_assumptions(new_assumptions):
     # Save to file
     with open('data/market_assumptions.json', 'w') as f:
         json.dump(serializable_assumptions, f, indent=4)
+        
+    # Debug - verify file was written correctly
+    import streamlit as st
+    try:
+        # Read the file back to verify it was written correctly
+        with open('data/market_assumptions.json', 'r') as f:
+            saved_data = json.load(f)
+        
+        # Debug info (this will only show up in the console logs)
+        print("Market assumptions saved successfully:")
+        print(f"File size: {os.path.getsize('data/market_assumptions.json')} bytes")
+        print(f"Number of asset classes: {len(saved_data['asset_classes'])}")
+        print(f"Sample return value (Global Equity short-term): {saved_data['short_term']['expected_returns']['Global Equity']}")
+    except Exception as e:
+        st.error(f"Error verifying saved data: {e}")
 
 def get_asset_returns_covariance(market_assumptions, view='long_term'):
     """
