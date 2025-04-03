@@ -1043,6 +1043,16 @@ def show_liquidity(client):
         else:
             st.error("Please enter a goal name and amount greater than zero.")
     
+    # Debug button to check goals
+    if st.button("Debug: Check Goals"):
+        st.write(f"Number of goals in plan: {len(plan.goals)}")
+        if plan.goals:
+            st.write("Goals found:")
+            for i, goal in enumerate(plan.goals):
+                st.write(f"{i+1}. {goal.name}: ${goal.amount:,.0f} at age {goal.age}")
+        else:
+            st.write("No goals found in the plan.")
+    
     # Display existing goals
     if plan.goals:
         st.write("Current Goals:")
