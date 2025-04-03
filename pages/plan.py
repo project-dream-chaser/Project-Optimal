@@ -7,6 +7,7 @@ import base64
 from datetime import datetime
 import os
 import json
+import time
 
 from models.client import Client
 from models.plan import Plan, Goal, CashFlow, LiquidityGoal
@@ -262,7 +263,9 @@ def save_plan(plan):
             if isinstance(value, np.ndarray):
                 plan_dict[key] = value.tolist()
         
-        with open(f'data/plans/{plan.client_id}.json', 'w') as f:
+        plan_path = f'data/plans/{plan.client_id}.json'
+        
+        with open(plan_path, 'w') as f:
             json.dump(plan_dict, f, indent=2)
             
         # If we have simulation results, save them too
@@ -295,6 +298,8 @@ def save_plan(plan):
                 
     except Exception as e:
         st.error(f"Error saving plan: {e}")
+        import traceback
+        st.error(f"Detailed error: {traceback.format_exc()}")
 
 def show_risk_assessment(client):
     """
@@ -1018,40 +1023,124 @@ def show_liquidity(client):
             new_goal_duration = st.number_input("Duration (Years)", key="new_goal_duration", min_value=1, max_value=30, value=4)
         new_goal_priority = st.selectbox("Priority", key="new_goal_priority", options=["High", "Medium", "Low"], index=1)
     
-    if st.button("Add Goal"):
+    col_add_goal1, col_add_goal2 = st.columns([3, 1])
+    
+    with col_add_goal1:
+        button_add_goal = st.button("Add Goal")
+    
+    with col_add_goal2:
+        # Debug toggle to show verbose logging
+        debug_mode = st.checkbox("Show Debug Info", False)
+    
+    if button_add_goal:
         if new_goal_name and new_goal_amount > 0:
+            if debug_mode:
+                st.write(f"DEBUG: Before adding goals, plan has {len(plan.goals)} goals")
+            
+            # Create a deep copy of the current goals to prevent reference issues
+            current_goals = plan.goals.copy()
+            
+            # Prepare new goals to add
+            goals_to_add = []
             if new_goal_recurring and new_goal_duration > 1:
                 # Add multiple yearly goals
                 for i in range(new_goal_duration):
-                    plan.goals.append(Goal(
+                    new_goal = Goal(
                         name=f"{new_goal_name} (Year {i+1})",
                         amount=new_goal_amount,
                         age=new_goal_age + i,
                         priority=new_goal_priority
-                    ))
+                    )
+                    goals_to_add.append(new_goal)
             else:
                 # Add a single goal
-                plan.goals.append(Goal(
+                new_goal = Goal(
                     name=new_goal_name,
                     amount=new_goal_amount,
                     age=new_goal_age,
                     priority=new_goal_priority
-                ))
-            save_plan(plan)
-            st.success(f"Added new goal: {new_goal_name}")
-            st.rerun()
+                )
+                goals_to_add.append(new_goal)
+            
+            # Combine current goals with new goals
+            plan.goals = current_goals + goals_to_add
+            
+            if debug_mode:
+                st.write(f"DEBUG: After adding goals, plan has {len(plan.goals)} goals")
+                st.write(f"DEBUG: Added {len(goals_to_add)} new goals:")
+                for i, goal in enumerate(goals_to_add):
+                    st.write(f"DEBUG: {i+1}. {goal.name}: ${goal.amount} at age {goal.age}")
+            
+            # Make sure the session state has the updated plan
+            st.session_state.current_plan = plan
+            
+            try:
+                # Save the plan to disk
+                save_plan(plan)
+                
+                if debug_mode:
+                    st.write(f"DEBUG: After save, plan has {len(plan.goals)} goals")
+                
+                # Success message
+                st.success(f"Added {len(goals_to_add)} new goal(s)")
+                
+                # Use a container to control when to rerun the app
+                with st.container():
+                    # Only show the continue button in debug mode
+                    if debug_mode:
+                        if st.button("Continue"):
+                            st.rerun()
+                    else:
+                        # Rerun immediately if not in debug mode
+                        time.sleep(0.5)  # Small delay to ensure save is complete
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Error saving goals: {e}")
+                import traceback
+                if debug_mode:
+                    st.error(f"Detailed error: {traceback.format_exc()}")
         else:
             st.error("Please enter a goal name and amount greater than zero.")
     
-    # Debug button to check goals
-    if st.button("Debug: Check Goals"):
-        st.write(f"Number of goals in plan: {len(plan.goals)}")
-        if plan.goals:
-            st.write("Goals found:")
+    # Debug buttons to check and fix goals
+    debug_col1, debug_col2 = st.columns(2)
+    
+    with debug_col1:
+        if st.button("Debug: Check Goals"):
+            st.write(f"Number of goals in plan: {len(plan.goals)}")
+            if plan.goals:
+                st.write("Goals found:")
+                for i, goal in enumerate(plan.goals):
+                    st.write(f"{i+1}. {goal.name}: ${goal.amount:,.0f} at age {goal.age}")
+            else:
+                st.write("No goals found in the plan.")
+    
+    with debug_col2:
+        if st.button("Debug: Add Test Goal"):
+            # Add a test goal directly
+            test_goal = Goal(
+                name="Test Goal",
+                amount=100000,
+                age=current_age + 10,
+                priority="Medium"
+            )
+            plan.goals.append(test_goal)
+            
+            # Force update of session state plan
+            st.session_state.current_plan = plan
+            
+            # Save and verify
+            st.write("About to save...")
+            save_plan(plan)
+            st.write("Save completed!")
+            
+            # Check if goal was actually saved
+            st.write(f"Checking goals after save: {len(plan.goals)} goals")
             for i, goal in enumerate(plan.goals):
-                st.write(f"{i+1}. {goal.name}: ${goal.amount:,.0f} at age {goal.age}")
-        else:
-            st.write("No goals found in the plan.")
+                st.write(f"{i+1}. {goal.name}: ${goal.amount:,.0f}")
+            
+            st.success("Test goal added and saved!")
+            # Don't rerun, so we can see messages
     
     # Display existing goals
     if plan.goals:
@@ -1237,23 +1326,71 @@ def show_liquidity(client):
                                       max_value=100, 
                                       value=restylement_age if new_cf_type == "Contribution" else longevity_age)
     
-    if st.button("Add Cash Flow"):
+    cf_button_col1, cf_button_col2 = st.columns([3, 1])
+    
+    with cf_button_col1:
+        cf_button_add = st.button("Add Cash Flow")
+    
+    with cf_button_col2:
+        # Debug toggle to show verbose logging
+        cf_debug_mode = st.checkbox("Show Debug Info", False, key="cf_debug_toggle")
+    
+    if cf_button_add:
         if new_cf_name and new_cf_amount > 0 and new_cf_end_age >= new_cf_start_age:
+            if cf_debug_mode:
+                st.write(f"DEBUG: Before adding cash flow, plan has {len(plan.cash_flows)} cash flows")
+            
+            # Create a deep copy of the current cash flows to prevent reference issues
+            current_cash_flows = plan.cash_flows.copy()
+            
             # Set the sign based on the type (contribution is positive, withdrawal is negative)
             amount = new_cf_amount if new_cf_type == "Contribution" else -new_cf_amount
             
-            # Add the cash flow
-            plan.cash_flows.append(CashFlow(
+            # Create the new cash flow
+            new_cf = CashFlow(
                 name=new_cf_name,
                 amount=amount,
                 start_age=new_cf_start_age,
                 end_age=new_cf_end_age,
                 growth_rate=new_cf_growth / 100
-            ))
+            )
             
-            save_plan(plan)
-            st.success(f"Added new cash flow: {new_cf_name}")
-            st.rerun()
+            # Add to the plan's cash flows
+            current_cash_flows.append(new_cf)
+            plan.cash_flows = current_cash_flows
+            
+            if cf_debug_mode:
+                st.write(f"DEBUG: After adding cash flow, plan has {len(plan.cash_flows)} cash flows")
+                st.write(f"DEBUG: Added new cash flow: {new_cf_name}, ${amount:,.2f} from age {new_cf_start_age} to {new_cf_end_age}")
+            
+            # Make sure the session state has the updated plan
+            st.session_state.current_plan = plan
+            
+            try:
+                # Save the plan to disk
+                save_plan(plan)
+                
+                if cf_debug_mode:
+                    st.write(f"DEBUG: After save, plan has {len(plan.cash_flows)} cash flows")
+                
+                # Success message
+                st.success(f"Added new cash flow: {new_cf_name}")
+                
+                # Use a container to control when to rerun the app
+                with st.container():
+                    # Only show the continue button in debug mode
+                    if cf_debug_mode:
+                        if st.button("Continue", key="cf_continue_button"):
+                            st.rerun()
+                    else:
+                        # Rerun immediately if not in debug mode
+                        time.sleep(0.5)  # Small delay to ensure save is complete
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Error saving cash flow: {e}")
+                import traceback
+                if cf_debug_mode:
+                    st.error(f"Detailed error: {traceback.format_exc()}")
         else:
             st.error("Please enter a valid name, amount, and ensure end age is equal to or greater than start age.")
     
