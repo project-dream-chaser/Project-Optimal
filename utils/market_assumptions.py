@@ -13,12 +13,24 @@ def get_market_assumptions():
     """
     import json
     import os
+    import pandas as pd
     
     # Check if market assumptions file exists
     if os.path.exists('data/market_assumptions.json'):
         try:
             with open('data/market_assumptions.json', 'r') as f:
-                return json.load(f)
+                assumptions = json.load(f)
+                
+                # Convert dictionary representations of DataFrames back to actual DataFrames
+                if 'short_term' in assumptions and 'correlations' in assumptions['short_term']:
+                    if isinstance(assumptions['short_term']['correlations'], dict):
+                        assumptions['short_term']['correlations'] = pd.DataFrame(assumptions['short_term']['correlations'])
+                        
+                if 'long_term' in assumptions and 'correlations' in assumptions['long_term']:
+                    if isinstance(assumptions['long_term']['correlations'], dict):
+                        assumptions['long_term']['correlations'] = pd.DataFrame(assumptions['long_term']['correlations'])
+                
+                return assumptions
         except Exception as e:
             st.error(f"Error loading market assumptions: {e}")
             # If there's an error, fall back to defaults
@@ -168,16 +180,37 @@ def update_market_assumptions(new_assumptions):
     """
     import json
     import os
+    import numpy as np
+    import pandas as pd
     
     # Update session state
     st.session_state.market_assumptions = new_assumptions
+    
+    # Make JSON serializable function
+    def make_json_serializable(obj):
+        """Convert numpy arrays, pandas DataFrames and other non-serializable objects to serializable types."""
+        if isinstance(obj, pd.DataFrame):
+            return obj.to_dict()
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {k: make_json_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [make_json_serializable(item) for item in obj]
+        elif hasattr(obj, 'tolist'):
+            return obj.tolist()
+        else:
+            return obj
+    
+    # Process the entire dictionary to ensure everything is serializable
+    serializable_assumptions = make_json_serializable(new_assumptions)
     
     # Ensure data directory exists
     os.makedirs('data', exist_ok=True)
     
     # Save to file
     with open('data/market_assumptions.json', 'w') as f:
-        json.dump(new_assumptions, f, indent=4)
+        json.dump(serializable_assumptions, f, indent=4)
 
 def get_asset_returns_covariance(market_assumptions, view='long_term'):
     """
