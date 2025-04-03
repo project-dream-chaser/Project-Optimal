@@ -1,0 +1,233 @@
+{
+    "asset_classes": [
+        "Global Equity",
+        "Core Bond",
+        "Short-Term Bond",
+        "Global Credit",
+        "Real Assets",
+        "Liquid Alternatives"
+    ],
+    "sub_asset_classes": {
+        "Global Equity": [
+            "US Value",
+            "US Quality",
+            "US Small Cap",
+            "International Developed",
+            "International Developed Small",
+            "Emerging Markets"
+        ],
+        "Core Bond": [
+            "1-5 Year Investment Grade",
+            "Absolute Return"
+        ],
+        "Short-Term Bond": [
+            "Short Duration Treasuries",
+            "Short Duration Credit"
+        ],
+        "Global Credit": [
+            "Quality High Yield",
+            "High Yield",
+            "Bank Loans",
+            "Securitized Credit",
+            "Emerging Market Debt"
+        ],
+        "Real Assets": [
+            "REITs",
+            "Commodities",
+            "Infrastructure",
+            "TIPS",
+            "Natural Resources"
+        ],
+        "Liquid Alternatives": [
+            "Market Neutral",
+            "Managed Futures",
+            "Global Macro"
+        ]
+    },
+    "long_term": {
+        "expected_returns": {
+            "Global Equity": 0.087,
+            "Core Bond": 0.052000000000000005,
+            "Short-Term Bond": 0.042,
+            "Global Credit": 0.07200000000000001,
+            "Real Assets": 0.069,
+            "Liquid Alternatives": 0.064
+        },
+        "volatilities": {
+            "Global Equity": 0.175,
+            "Core Bond": 0.07400000000000001,
+            "Short-Term Bond": 0.03,
+            "Global Credit": 0.084,
+            "Real Assets": 0.105,
+            "Liquid Alternatives": 0.1
+        },
+        "correlations": {
+            "Global Equity": {
+                "Global Equity": 1.0,
+                "Core Bond": -0.1,
+                "Short-Term Bond": -0.05,
+                "Global Credit": 0.5,
+                "Real Assets": 0.6,
+                "Liquid Alternatives": 0.0
+            },
+            "Core Bond": {
+                "Global Equity": -0.1,
+                "Core Bond": 1.0,
+                "Short-Term Bond": 0.8,
+                "Global Credit": 0.2,
+                "Real Assets": -0.1,
+                "Liquid Alternatives": 0.0
+            },
+            "Short-Term Bond": {
+                "Global Equity": -0.05,
+                "Core Bond": 0.8,
+                "Short-Term Bond": 1.0,
+                "Global Credit": 0.15,
+                "Real Assets": -0.05,
+                "Liquid Alternatives": 0.1
+            },
+            "Global Credit": {
+                "Global Equity": 0.5,
+                "Core Bond": 0.2,
+                "Short-Term Bond": 0.15,
+                "Global Credit": 1.0,
+                "Real Assets": 0.45,
+                "Liquid Alternatives": 0.0
+            },
+            "Real Assets": {
+                "Global Equity": 0.6,
+                "Core Bond": -0.1,
+                "Short-Term Bond": -0.05,
+                "Global Credit": 0.45,
+                "Real Assets": 1.0,
+                "Liquid Alternatives": 0.0
+            },
+            "Liquid Alternatives": {
+                "Global Equity": 0.4,
+                "Core Bond": -0.2,
+                "Short-Term Bond": -0.1,
+                "Global Credit": 0.35,
+                "Real Assets": 0.25,
+                "Liquid Alternatives": 1.0
+            }
+        }
+    },
+    "short_term": {
+        "expected_returns": {
+            "Global Equity": 0.06,
+            "Core Bond": 0.046,
+            "Short-Term Bond": 0.040999999999999995,
+            "Global Credit": 0.053,
+            "Real Assets": 0.047,
+            "Liquid Alternatives": 0.061
+        },
+        "volatilities": {
+            "Global Equity": 0.175,
+            "Core Bond": 0.07400000000000001,
+            "Short-Term Bond": 0.03,
+            "Global Credit": 0.084,
+            "Real Assets": 0.105,
+            "Liquid Alternatives": 0.1
+        },
+        "correlations": {
+            "Global Equity": {
+                "Global Equity": 1.0,
+                "Core Bond": -0.1,
+                "Short-Term Bond": -0.05,
+                "Global Credit": 0.5,
+                "Real Assets": 0.6,
+                "Liquid Alternatives": 0.0
+            },
+            "Core Bond": {
+                "Global Equity": -0.1,
+                "Core Bond": 1.0,
+                "Short-Term Bond": 0.8,
+                "Global Credit": 0.2,
+                "Real Assets": -0.1,
+                "Liquid Alternatives": 0.0
+            },
+            "Short-Term Bond": {
+                "Global Equity": -0.05,
+                "Core Bond": 0.8,
+                "Short-Term Bond": 1.0,
+                "Global Credit": 0.15,
+                "Real Assets": -0.05,
+                "Liquid Alternatives": 0.1
+            },
+            "Global Credit": {
+                "Global Equity": 0.5,
+                "Core Bond": 0.2,
+                "Short-Term Bond": 0.15,
+                "Global Credit": 1.0,
+                "Real Assets": 0.45,
+                "Liquid Alternatives": 0.0
+            },
+            "Real Assets": {
+                "Global Equity": 0.6,
+                "Core Bond": -0.1,
+                "Short-Term Bond": -0.05,
+                "Global Credit": 0.45,
+                "Real Assets": 1.0,
+                "Liquid Alternatives": 0.0
+            },
+            "Liquid Alternatives": {
+                "Global Equity": 0.4,
+                "Core Bond": -0.2,
+                "Short-Term Bond": -0.1,
+                "Global Credit": 0.35,
+                "Real Assets": 0.25,
+                "Liquid Alternatives": 1.0
+            }
+        }
+    },
+    "sub_asset_class_returns": {
+        "US Value": 0.069,
+        "US Quality": 0.063,
+        "US Small Cap": 0.075,
+        "International Developed": 0.063,
+        "International Developed Small": 0.072,
+        "Emerging Markets": 0.082,
+        "1-5 Year Investment Grade": 0.024,
+        "Absolute Return": 0.028,
+        "Short Duration Treasuries": 0.017,
+        "Short Duration Credit": 0.021,
+        "Quality High Yield": 0.04,
+        "High Yield": 0.047,
+        "Bank Loans": 0.043,
+        "Securitized Credit": 0.038,
+        "Emerging Market Debt": 0.048,
+        "REITs": 0.056,
+        "Commodities": 0.043,
+        "Infrastructure": 0.058,
+        "TIPS": 0.027,
+        "Natural Resources": 0.053,
+        "Market Neutral": 0.035,
+        "Managed Futures": 0.043,
+        "Global Macro": 0.048
+    },
+    "sub_asset_class_volatilities": {
+        "US Value": 0.17,
+        "US Quality": 0.16,
+        "US Small Cap": 0.21,
+        "International Developed": 0.18,
+        "International Developed Small": 0.2,
+        "Emerging Markets": 0.23,
+        "1-5 Year Investment Grade": 0.035,
+        "Absolute Return": 0.042,
+        "Short Duration Treasuries": 0.02,
+        "Short Duration Credit": 0.03,
+        "Quality High Yield": 0.08,
+        "High Yield": 0.12,
+        "Bank Loans": 0.09,
+        "Securitized Credit": 0.07,
+        "Emerging Market Debt": 0.14,
+        "REITs": 0.16,
+        "Commodities": 0.19,
+        "Infrastructure": 0.12,
+        "TIPS": 0.05,
+        "Natural Resources": 0.16,
+        "Market Neutral": 0.06,
+        "Managed Futures": 0.12,
+        "Global Macro": 0.09
+    }
+}

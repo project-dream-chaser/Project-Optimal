@@ -118,7 +118,18 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
         # Set the glidepath in the plan
         plan.glidepath = np.array(glidepath)
         
-        # Run monte carlo simulation with this glidepath
+        # Configure the plan to use time-varying returns with 7-year mean reversion
+        # This will make the optimization use short-term CMA initially that blends to 
+        # long-term CMA over 7 years
+        plan.glidepath_info = {
+            'description': 'This glidepath uses a 7-year mean reversion from short-term to long-term capital market assumptions',
+            'short_term_source': 'Current market conditions (short-term capital market assumptions)',
+            'long_term_source': 'Equilibrium expectations (long-term capital market assumptions)',
+            'mean_reversion_years': 7,
+            'time_varying_returns': True
+        }
+        
+        # Run monte carlo simulation with this glidepath and time-varying returns
         sim_results = run_monte_carlo_simulation(
             client, 
             plan, 
@@ -265,7 +276,7 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
     bearish_glidepath = np.array(bearish_glidepath)
     bullish_glidepath = np.array(bullish_glidepath)
     
-    # Add a description of the mean reversion process to the glidepath result
+    # Define the mean reversion process info for the glidepath result
     mean_reversion_info = {
         'description': 'This glidepath uses a 7-year mean reversion from short-term to long-term capital market assumptions',
         'short_term_source': 'Current market conditions (short-term capital market assumptions)',
@@ -278,6 +289,9 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
     plan.glidepath = glidepath
     plan.glidepath_info = mean_reversion_info
     
+    # Ensure time_varying_returns is explicitly set to True to apply the mean reversion
+    # This will make the simulation start with short-term assumptions and blend to 
+    # long-term assumptions over the 7-year period
     final_sim_results = run_monte_carlo_simulation(
         client, 
         plan, 
