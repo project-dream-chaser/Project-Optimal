@@ -2381,115 +2381,131 @@ def show_glidepath_optimization(client):
         net_worth_data = []
         ages = results['ages']
         
-        # Get the median portfolio values from the percentiles
-        median_values = results['percentiles']['median']
-        
-        # Get key ages (current, restylement, restylement+10, end)
+        # Get key ages for display (needed regardless of whether we have median values)
         current_age = ages[0]
         restylement_age = client.restylement_age
         max_age = ages[-1]
         
-        # Find key milestones for the table
-        key_ages = []
-        key_indices = []
-        
-        # Current age
-        key_ages.append(current_age)
-        key_indices.append(0)  # First index
-        
-        # Age 50 (if applicable)
-        if current_age < 50 and 50 < max_age:
-            age_50_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - 50))
-            key_ages.append(ages[age_50_idx])
-            key_indices.append(age_50_idx)
-        
-        # 10 years before restylement (if applicable)
-        pre_restylement_age = restylement_age - 10
-        if current_age < pre_restylement_age and pre_restylement_age < max_age:
-            pre_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - pre_restylement_age))
-            key_ages.append(ages[pre_idx])
-            key_indices.append(pre_idx)
-            
-        # Restylement age
-        if current_age < restylement_age and restylement_age < max_age:
-            restylement_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - restylement_age))
-            key_ages.append(ages[restylement_idx])
-            key_indices.append(restylement_idx)
-            
-        # 10 years after restylement (if applicable)
-        post_restylement_age = restylement_age + 10
-        if post_restylement_age < max_age:
-            post_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - post_restylement_age))
-            key_ages.append(ages[post_idx])
-            key_indices.append(post_idx)
-            
-        # End of plan
-        key_ages.append(max_age)
-        key_indices.append(len(ages) - 1)  # Last index
-        
-        # Create data for each key age
-        for i, age_idx in enumerate(key_indices):
-            age = ages[age_idx]
-            median_value = median_values[age_idx]
-            
-            # Calculate average annual return if we have previous data point
-            avg_annual_return = None
-            if i > 0:
-                prev_idx = key_indices[i-1]
-                prev_value = median_values[prev_idx]
-                years = age_idx - prev_idx
-                
-                if years > 0 and prev_value > 0:
-                    # Compound annual growth rate formula
-                    avg_annual_return = ((median_value / prev_value) ** (1/years)) - 1
-            
-            # Calculate expected equity allocation at this age
-            equity_allocation = 0
-            for j, asset_class in enumerate(results['asset_classes']):
-                # Sum up all equity asset classes
-                if 'Equity' in asset_class or 'Stock' in asset_class:
-                    equity_allocation += results['glidepath'][age_idx][j]
-            
-            # Calculate withdrawal rate at retirement
-            withdrawal_rate = None
-            if 'sustainable_withdrawal_rate' in results and age >= restylement_age:
-                withdrawal_rate = results['sustainable_withdrawal_rate']
-                
-            # Create row data
-            row = {
-                'Age': age,
-                'Median Net Worth': f"${median_value:,.0f}",
-                'Equity Allocation': f"{equity_allocation * 100:.1f}%"
-            }
-            
-            if avg_annual_return is not None:
-                row['Avg Annual Return'] = f"{avg_annual_return * 100:.1f}%"
+        # Check if the results contain percentiles from the simulation
+        if 'simulation_results' in results and 'percentiles' in results['simulation_results']:
+            # Get the median portfolio values from the simulation results
+            median_values = results['simulation_results']['percentiles']['median']
+        elif 'percentiles' in results:
+            # Get the median portfolio values directly from the percentiles
+            median_values = results['percentiles']['median']
+        else:
+            # If percentiles are not available, use the first simulation path as fallback
+            if 'simulation_results' in results and 'portfolio_paths' in results['simulation_results']:
+                median_values = results['simulation_results']['portfolio_paths'][0]
             else:
-                row['Avg Annual Return'] = "N/A"
-                
-            if withdrawal_rate is not None:
-                annual_withdrawal = median_value * withdrawal_rate
-                row['Annual Withdrawal'] = f"${annual_withdrawal:,.0f}"
-                row['Withdrawal Rate'] = f"{withdrawal_rate * 100:.2f}%"
-            else:
-                row['Annual Withdrawal'] = "N/A"
-                row['Withdrawal Rate'] = "N/A"
-                
-            # Add special labels for key ages
-            if age == current_age:
-                row['Milestone'] = "Current Age"
-            elif age == restylement_age:
-                row['Milestone'] = "Restylement Age"
-            elif age == max_age:
-                row['Milestone'] = "End of Plan"
-            else:
-                row['Milestone'] = ""
-                
-            net_worth_data.append(row)
+                # Skip the net worth table if no portfolio values are available
+                st.warning("Portfolio projections are not available for the net worth table.")
+                median_values = None
         
-        # Create DataFrame and display
-        net_worth_df = pd.DataFrame(net_worth_data)
-        st.dataframe(net_worth_df, use_container_width=True, hide_index=True)
+        # Only proceed if we have valid median values
+        if median_values is not None:
+        
+            # Find key milestones for the table
+            key_ages = []
+            key_indices = []
+            
+            # Current age
+            key_ages.append(current_age)
+            key_indices.append(0)  # First index
+            
+            # Age 50 (if applicable)
+            if current_age < 50 and 50 < max_age:
+                age_50_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - 50))
+                key_ages.append(ages[age_50_idx])
+                key_indices.append(age_50_idx)
+            
+            # 10 years before restylement (if applicable)
+            pre_restylement_age = restylement_age - 10
+            if current_age < pre_restylement_age and pre_restylement_age < max_age:
+                pre_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - pre_restylement_age))
+                key_ages.append(ages[pre_idx])
+                key_indices.append(pre_idx)
+                
+            # Restylement age
+            if current_age < restylement_age and restylement_age < max_age:
+                restylement_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - restylement_age))
+                key_ages.append(ages[restylement_idx])
+                key_indices.append(restylement_idx)
+                
+            # 10 years after restylement (if applicable)
+            post_restylement_age = restylement_age + 10
+            if post_restylement_age < max_age:
+                post_idx = min(range(len(ages)), key=lambda i: abs(ages[i] - post_restylement_age))
+                key_ages.append(ages[post_idx])
+                key_indices.append(post_idx)
+                
+            # End of plan
+            key_ages.append(max_age)
+            key_indices.append(len(ages) - 1)  # Last index
+            
+            # Create data for each key age
+            for i, age_idx in enumerate(key_indices):
+                age = ages[age_idx]
+                median_value = median_values[age_idx]
+                
+                # Calculate average annual return if we have previous data point
+                avg_annual_return = None
+                if i > 0:
+                    prev_idx = key_indices[i-1]
+                    prev_value = median_values[prev_idx]
+                    years = age_idx - prev_idx
+                    
+                    if years > 0 and prev_value > 0:
+                        # Compound annual growth rate formula
+                        avg_annual_return = ((median_value / prev_value) ** (1/years)) - 1
+                
+                # Calculate expected equity allocation at this age
+                equity_allocation = 0
+                for j, asset_class in enumerate(results['asset_classes']):
+                    # Sum up all equity asset classes
+                    if 'Equity' in asset_class or 'Stock' in asset_class:
+                        equity_allocation += results['glidepath'][age_idx][j]
+                
+                # Calculate withdrawal rate at retirement
+                withdrawal_rate = None
+                if 'sustainable_withdrawal_rate' in results and age >= restylement_age:
+                    withdrawal_rate = results['sustainable_withdrawal_rate']
+                    
+                # Create row data
+                row = {
+                    'Age': age,
+                    'Median Net Worth': f"${median_value:,.0f}",
+                    'Equity Allocation': f"{equity_allocation * 100:.1f}%"
+                }
+                
+                if avg_annual_return is not None:
+                    row['Avg Annual Return'] = f"{avg_annual_return * 100:.1f}%"
+                else:
+                    row['Avg Annual Return'] = "N/A"
+                    
+                if withdrawal_rate is not None:
+                    annual_withdrawal = median_value * withdrawal_rate
+                    row['Annual Withdrawal'] = f"${annual_withdrawal:,.0f}"
+                    row['Withdrawal Rate'] = f"{withdrawal_rate * 100:.2f}%"
+                else:
+                    row['Annual Withdrawal'] = "N/A"
+                    row['Withdrawal Rate'] = "N/A"
+                    
+                # Add special labels for key ages
+                if age == current_age:
+                    row['Milestone'] = "Current Age"
+                elif age == restylement_age:
+                    row['Milestone'] = "Restylement Age"
+                elif age == max_age:
+                    row['Milestone'] = "End of Plan"
+                else:
+                    row['Milestone'] = ""
+                    
+                net_worth_data.append(row)
+            
+            # Create DataFrame and display
+            net_worth_df = pd.DataFrame(net_worth_data)
+            st.dataframe(net_worth_df, use_container_width=True, hide_index=True)
             
         # Display glidepath data table
         st.subheader("Optimized Glidepath Data")
