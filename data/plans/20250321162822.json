@@ -61,7 +61,7 @@
       "max": 10.0
     }
   },
-  "risk_aversion": 6.8,
+  "risk_aversion": 8.0,
   "mean_reversion_speed": 0.0,
   "glidepath": [
     [
