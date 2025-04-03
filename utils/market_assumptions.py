@@ -182,6 +182,7 @@ def update_market_assumptions(new_assumptions):
     import os
     import numpy as np
     import pandas as pd
+    import streamlit as st
     
     # Update session state
     st.session_state.market_assumptions = new_assumptions
@@ -213,7 +214,6 @@ def update_market_assumptions(new_assumptions):
         json.dump(serializable_assumptions, f, indent=4)
         
     # Debug - verify file was written correctly
-    import streamlit as st
     try:
         # Read the file back to verify it was written correctly
         with open('data/market_assumptions.json', 'r') as f:
