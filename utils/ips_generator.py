@@ -50,13 +50,13 @@ def generate_investment_policy_statement(client, plan, glidepath_result, risk_pr
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
         name='IPSHeading1',
-        parent=styles['IPSHeading1'],
+        parent=styles['Heading1'],
         fontSize=16,
         spaceAfter=12
     ))
     styles.add(ParagraphStyle(
         name='IPSHeading2',
-        parent=styles['IPSHeading2'],
+        parent=styles['Heading2'],
         fontSize=14,
         spaceAfter=10
     ))
