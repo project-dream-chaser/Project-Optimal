@@ -151,26 +151,54 @@ def load_or_create_plan(client):
                 sim_path = f'data/plans/{client.id}_simulation.json'
                 if os.path.exists(sim_path):
                     try:
-                        with open(sim_path, 'r') as f:
-                            sim_data = json.load(f)
-                        st.session_state.simulation_results = sim_data
+                        # First check file size to make sure it's not corrupted
+                        file_size = os.path.getsize(sim_path)
+                        if file_size < 100:  # Very small file likely indicates corruption
+                            st.warning(f"Simulation results file appears to be corrupted (only {file_size} bytes). It will be regenerated when you run a simulation.")
+                            # Rename the corrupted file but don't delete it
+                            if os.path.exists(f"{sim_path}.corrupted"):
+                                os.remove(f"{sim_path}.corrupted")
+                            os.rename(sim_path, f"{sim_path}.corrupted")
+                        else:
+                            with open(sim_path, 'r') as f:
+                                sim_data = json.load(f)
+                            st.session_state.simulation_results = sim_data
                     except Exception as e:
                         st.warning(f"Could not load simulation results: {e}")
+                        # Rename the corrupted file but don't delete it
+                        if os.path.exists(sim_path):
+                            if os.path.exists(f"{sim_path}.corrupted"):
+                                os.remove(f"{sim_path}.corrupted")
+                            os.rename(sim_path, f"{sim_path}.corrupted")
                 
                 # If we have glidepath results, try to load them
                 glidepath_path = f'data/plans/{client.id}_glidepath.json'
                 if os.path.exists(glidepath_path):
                     try:
-                        with open(glidepath_path, 'r') as f:
-                            glidepath_data = json.load(f)
-                            
-                        # Convert lists back to numpy arrays where needed
-                        if 'glidepath' in glidepath_data:
-                            glidepath_data['glidepath'] = np.array(glidepath_data['glidepath'])
-                            
-                        st.session_state.glidepath_results = glidepath_data
+                        # First check file size to make sure it's not corrupted
+                        file_size = os.path.getsize(glidepath_path)
+                        if file_size < 100:  # Very small file likely indicates corruption
+                            st.warning(f"Glidepath results file appears to be corrupted (only {file_size} bytes). It will be regenerated when you run an optimization.")
+                            # Rename the corrupted file but don't delete it
+                            if os.path.exists(f"{glidepath_path}.corrupted"):
+                                os.remove(f"{glidepath_path}.corrupted")
+                            os.rename(glidepath_path, f"{glidepath_path}.corrupted")
+                        else:
+                            with open(glidepath_path, 'r') as f:
+                                glidepath_data = json.load(f)
+                                
+                            # Convert lists back to numpy arrays where needed
+                            if 'glidepath' in glidepath_data:
+                                glidepath_data['glidepath'] = np.array(glidepath_data['glidepath'])
+                                
+                            st.session_state.glidepath_results = glidepath_data
                     except Exception as e:
                         st.warning(f"Could not load glidepath results: {e}")
+                        # Rename the corrupted file but don't delete it
+                        if os.path.exists(glidepath_path):
+                            if os.path.exists(f"{glidepath_path}.corrupted"):
+                                os.remove(f"{glidepath_path}.corrupted")
+                            os.rename(glidepath_path, f"{glidepath_path}.corrupted")
                 
             except Exception as e:
                 st.error(f"Error processing plan data: {e}")
@@ -2363,17 +2391,43 @@ def show_ips_generation(client):
     
     # Button to generate the IPS
     if st.button("Generate Investment Policy Statement"):
-        with st.spinner("Generating Investment Policy Statement..."):
-            # Generate the IPS
-            ips_pdf = generate_investment_policy_statement(
-                client,
-                plan,
-                glidepath_result,
-                risk_profile
-            )
+        # Check if we have valid glidepath results
+        if not glidepath_result or not isinstance(glidepath_result, dict) or 'glidepath' not in glidepath_result:
+            st.error("Cannot generate IPS: Missing or invalid glidepath optimization results. Please run the Glidepath Optimization first.")
+            return
             
-            # Store the PDF in session state
-            st.session_state.ips_pdf = ips_pdf
+        # If necessary, initialize any missing data with defaults to prevent errors
+        if 'success_probability' not in glidepath_result:
+            glidepath_result['success_probability'] = 0.85  # Default 85% success probability
+            
+        if 'asset_classes' not in glidepath_result:
+            glidepath_result['asset_classes'] = [
+                'Global Equity', 'Core Bond', 'Short-Term Bond', 
+                'Global Credit', 'Real Assets', 'Liquid Alternatives'
+            ]
+            
+        if 'ages' not in glidepath_result:
+            # Create age sequence from current age to longevity age
+            current_age = datetime.now().year - datetime.strptime(client.date_of_birth, '%Y-%m-%d').year
+            glidepath_result['ages'] = list(range(current_age, client.longevity_age + 1))
+        
+        with st.spinner("Generating Investment Policy Statement..."):
+            try:
+                # Generate the IPS
+                ips_pdf = generate_investment_policy_statement(
+                    client,
+                    plan,
+                    glidepath_result,
+                    risk_profile
+                )
+                
+                # Store the PDF in session state
+                st.session_state.ips_pdf = ips_pdf
+            except Exception as e:
+                import traceback
+                st.error(f"Error generating IPS: {e}")
+                st.error(f"Detailed error: {traceback.format_exc()}")
+                return
     
     # Display IPS if generated
     if hasattr(st.session_state, 'ips_pdf') and st.session_state.ips_pdf:
