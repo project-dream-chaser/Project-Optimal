@@ -259,9 +259,21 @@ def save_plan(plan):
         plan_dict = plan.to_dict()
         
         # Ensure all values are JSON serializable
-        for key, value in plan_dict.items():
-            if isinstance(value, np.ndarray):
-                plan_dict[key] = value.tolist()
+        def make_json_serializable(obj):
+            """Convert numpy arrays and other non-serializable objects to serializable types."""
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {k: make_json_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [make_json_serializable(item) for item in obj]
+            elif hasattr(obj, 'tolist'):
+                return obj.tolist()
+            else:
+                return obj
+        
+        # Process the entire dictionary to ensure everything is serializable
+        plan_dict = make_json_serializable(plan_dict)
         
         plan_path = f'data/plans/{plan.client_id}.json'
         
@@ -273,28 +285,28 @@ def save_plan(plan):
             try:
                 # Convert any numpy arrays to lists for JSON serialization
                 sim_data = st.session_state.simulation_results.copy()
-                for key, value in sim_data.items():
-                    if isinstance(value, np.ndarray):
-                        sim_data[key] = value.tolist()
+                sim_data = make_json_serializable(sim_data)
                 
                 with open(f'data/plans/{plan.client_id}_simulation.json', 'w') as f:
                     json.dump(sim_data, f, indent=2)
             except Exception as e:
                 st.warning(f"Error saving simulation results: {e}")
+                import traceback
+                st.warning(f"Detailed error: {traceback.format_exc()}")
         
         # If we have glidepath results, save them too
         if 'glidepath_results' in st.session_state and st.session_state.glidepath_results:
             try:
                 # Convert numpy arrays to lists for JSON serialization
                 glidepath_dict = st.session_state.glidepath_results.copy()
-                for key, value in glidepath_dict.items():
-                    if isinstance(value, np.ndarray):
-                        glidepath_dict[key] = value.tolist()
+                glidepath_dict = make_json_serializable(glidepath_dict)
                 
                 with open(f'data/plans/{plan.client_id}_glidepath.json', 'w') as f:
                     json.dump(glidepath_dict, f, indent=2)
             except Exception as e:
                 st.warning(f"Error saving glidepath results: {e}")
+                import traceback
+                st.warning(f"Detailed error: {traceback.format_exc()}")
                 
     except Exception as e:
         st.error(f"Error saving plan: {e}")

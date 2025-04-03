@@ -381,7 +381,7 @@ class Plan:
             'allocation_constraints': self.allocation_constraints,
             'risk_aversion': self.risk_aversion,
             'mean_reversion_speed': self.mean_reversion_speed,
-            'glidepath': self.glidepath.tolist() if self.glidepath is not None else None,
+            'glidepath': self.glidepath if self.glidepath is not None else None,
             'glidepath_info': self.glidepath_info,
             'pre_restylement_return': self.pre_restylement_return,
             'post_restylement_return': self.post_restylement_return,
