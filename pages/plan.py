@@ -603,16 +603,32 @@ def show_return_objective(client):
         years_to_restylement = max(0, client.restylement_age - current_age)
         years_to_end = max(0, client.longevity_age - current_age)
         
+        # Automatically find retirement spending from cash flows if available
+        restylement_spending = 0
+        for cf in plan.cash_flows:
+            if cf.name == "Restylement Living Expenses" and cf.start_age <= client.restylement_age and cf.end_age >= client.restylement_age:
+                # Use the absolute value since it's stored as a negative number (withdrawal)
+                restylement_spending = abs(cf.amount)
+                break
+        
         col1, col2 = st.columns(2)
         
         with col1:
-            desired_spending = st.number_input(
-                f"Desired Annual Spending at Restylement (Age {client.restylement_age}) ($)",
-                min_value=0,
-                value=int(plan.desired_spending) if plan.desired_spending > 0 else 0,
-                step=1000,
-                help="Your desired annual spending amount when you reach restylement age"
-            )
+            if restylement_spending > 0:
+                # Display as info when pulled from cash flows
+                st.info(f"Using annual spending of ${restylement_spending:,.0f} from Liquidity page cash flows")
+                # Store the value in the plan
+                desired_spending = restylement_spending
+            else:
+                # Allow manual input if no matching cash flow found
+                desired_spending = st.number_input(
+                    f"Desired Annual Spending at Restylement (Age {client.restylement_age}) ($)",
+                    min_value=0,
+                    value=int(plan.desired_spending) if plan.desired_spending > 0 else 0,
+                    step=1000,
+                    help="Your desired annual spending amount when you reach restylement age"
+                )
+                st.caption("💡 Add 'Restylement Living Expenses' cash flow in the Liquidity page to automatically populate this value")
         
         with col2:
             desired_legacy = st.number_input(
