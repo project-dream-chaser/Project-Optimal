@@ -404,27 +404,21 @@ def show_risk_assessment(client):
                     st.session_state.clients[i] = client
                     break
     
-    # Risk Parameters
+    # Risk Parameters - Using fixed values based on client's max_stock_pct
     st.subheader("Risk Parameters")
     
     # Initialize risk parameters if not in the plan
     if not hasattr(plan, 'risk_aversion'):
-        plan.risk_aversion = 3.0
+        plan.risk_aversion = 6.0  # Fixed static value
     
     if not hasattr(plan, 'mean_reversion_speed'):
         plan.mean_reversion_speed = 0.15
     
-    # Risk aversion parameter
-    risk_aversion = st.slider(
-        "Risk Aversion Parameter",
-        min_value=1.0,
-        max_value=10.0,
-        value=plan.risk_aversion,
-        step=0.1,
-        help="Higher values lead to more conservative allocations"
-    )
+    # Display current risk parameters (but don't allow changing via sliders)
+    st.write(f"Risk Parameter: Fixed value based on client's maximum stock percentage")
+    st.write(f"Mean Reversion Speed: {plan.mean_reversion_speed:.2f} (standard)")
     
-    # Mean reversion parameter
+    # Mean reversion parameter is still configurable
     mean_reversion_speed = st.slider(
         "Mean Reversion Speed",
         min_value=0.0,
@@ -434,9 +428,8 @@ def show_risk_assessment(client):
         help="Speed at which returns revert to long-term means (0 = no mean reversion, 0.5 = fast mean reversion)"
     )
     
-    # Update risk parameters if changed
-    if risk_aversion != plan.risk_aversion or mean_reversion_speed != plan.mean_reversion_speed:
-        plan.risk_aversion = risk_aversion
+    # Update mean reversion parameter if changed
+    if mean_reversion_speed != plan.mean_reversion_speed:
         plan.mean_reversion_speed = mean_reversion_speed
         save_plan(plan)
     

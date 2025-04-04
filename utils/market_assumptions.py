@@ -280,11 +280,9 @@ def optimize_sub_asset_classes(market_assumptions, risk_aversion=None):
     
     optimized_allocations = {}
     
-    # Get risk aversion parameter from input, session state, or default
+    # Use static risk aversion parameter of 6.0 if not explicitly provided
     if risk_aversion is None:
-        risk_aversion = 4.0  # Default is now 4.0
-        if 'risk_aversion' in st.session_state:
-            risk_aversion = st.session_state.risk_aversion
+        risk_aversion = 6.0  # Fixed static value
     
     # Check if we have sub-asset class constraints
     sub_asset_constraints = {}

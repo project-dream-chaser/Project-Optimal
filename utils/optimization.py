@@ -444,7 +444,7 @@ def mean_variance_optimize(expected_returns, cov_matrix, risk_aversion=3.0, min_
 
 def plot_glidepath(glidepath_result):
     """
-    Generate a visualization of the optimized glidepath with dynamic market adjustments.
+    Generate a visualization of the optimized glidepath allocation over time.
     
     Parameters:
     -----------
@@ -456,8 +456,8 @@ def plot_glidepath(glidepath_result):
     fig : matplotlib Figure
         Figure with the glidepath visualization
     """
-    # Main figure with two subplots
-    fig = plt.figure(figsize=(16, 10))
+    # Main figure with single plot (removed dynamic market adjustment charts)
+    fig = plt.figure(figsize=(16, 8))
     
     # Extract data from results
     glidepath = glidepath_result['glidepath']
@@ -465,8 +465,8 @@ def plot_glidepath(glidepath_result):
     ages = glidepath_result['ages']
     retirement_age = glidepath_result.get('retirement_age', 65)
     
-    # Plot 1: Standard Glidepath (stacked area)
-    ax1 = plt.subplot2grid((3, 2), (0, 0), colspan=2, rowspan=2)
+    # Create single plot for glidepath allocation
+    ax1 = plt.subplot(1, 1, 1)
     
     # Create stacked area chart
     bottom = np.zeros(len(glidepath))
@@ -515,70 +515,6 @@ def plot_glidepath(glidepath_result):
     ax1.set_xlim(ages[0], ages[-1])
     ax1.set_ylim(0, 1)
     ax1.grid(alpha=0.3)
-    
-    # Plot 2: Market-Based Adjustments (line chart)
-    ax2 = plt.subplot2grid((3, 2), (2, 0), colspan=1)
-    
-    # Extract equity allocations from different market conditions
-    if 'bearish_glidepath' in glidepath_result and 'bullish_glidepath' in glidepath_result:
-        # Find equity index
-        equity_idx = asset_classes.index('Global Equity')
-        
-        # Get equity percentages across all glidepaths
-        standard_equity = [alloc[equity_idx] for alloc in glidepath]
-        bearish_equity = [alloc[equity_idx] for alloc in glidepath_result['bearish_glidepath']]
-        bullish_equity = [alloc[equity_idx] for alloc in glidepath_result['bullish_glidepath']]
-        
-        # Plot equity allocations
-        ax2.plot(ages, standard_equity, 'b-', linewidth=2, label='Baseline')
-        ax2.plot(ages, bearish_equity, 'r--', linewidth=2, label='Bearish Markets')
-        ax2.plot(ages, bullish_equity, 'g--', linewidth=2, label='Bullish Markets')
-        
-        # Add retirement age line
-        if retirement_index is not None:
-            ax2.axvline(x=retirement_age, color='r', linestyle='--', alpha=0.7)
-        
-        ax2.set_xlabel('Age')
-        ax2.set_ylabel('Equity Allocation (%)')
-        ax2.set_title('Dynamic Equity Allocation by Market Condition', fontsize=12)
-        ax2.legend(loc='upper right')
-        ax2.grid(alpha=0.3)
-        ax2.set_xlim(ages[0], ages[-1])
-        ax2.set_ylim(0, 1)
-    
-    # Plot 3: Bond Allocation Adjustments
-    ax3 = plt.subplot2grid((3, 2), (2, 1), colspan=1)
-    
-    # Get bond allocations
-    if 'bearish_glidepath' in glidepath_result and 'bullish_glidepath' in glidepath_result:
-        # Find bond indices
-        bond_indices = [i for i, asset in enumerate(asset_classes) 
-                       if 'Bond' in asset or 'Credit' in asset]
-        
-        # Calculate total bond allocation across all bond asset classes
-        def sum_bonds(allocations):
-            return [sum(alloc[i] for i in bond_indices) for alloc in allocations]
-            
-        standard_bonds = sum_bonds(glidepath)
-        bearish_bonds = sum_bonds(glidepath_result['bearish_glidepath'])
-        bullish_bonds = sum_bonds(glidepath_result['bullish_glidepath'])
-        
-        # Plot bond allocations
-        ax3.plot(ages, standard_bonds, 'b-', linewidth=2, label='Baseline')
-        ax3.plot(ages, bearish_bonds, 'r--', linewidth=2, label='Bearish Markets')
-        ax3.plot(ages, bullish_bonds, 'g--', linewidth=2, label='Bullish Markets')
-        
-        # Add retirement age line
-        if retirement_index is not None:
-            ax3.axvline(x=retirement_age, color='r', linestyle='--', alpha=0.7)
-        
-        ax3.set_xlabel('Age')
-        ax3.set_ylabel('Fixed Income Allocation (%)')
-        ax3.set_title('Dynamic Bond Allocation by Market Condition', fontsize=12)
-        ax3.legend(loc='upper left')
-        ax3.grid(alpha=0.3)
-        ax3.set_xlim(ages[0], ages[-1])
-        ax3.set_ylim(0, 1)
     
     plt.tight_layout()
     

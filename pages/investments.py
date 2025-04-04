@@ -305,10 +305,10 @@ def show_sub_asset_class_models():
     # Add a section for optimization
     st.subheader("Optimize Sub-Asset Class Weights")
     
-    # Use fixed risk aversion parameter of 4.0 for all sub-asset class optimizations
-    risk_aversion = 4.0
+    # Use fixed risk aversion parameter of 6.0 for all sub-asset class optimizations
+    risk_aversion = 6.0
     
-    st.write(f"Using risk aversion parameter: {risk_aversion:.1f} (fixed)")
+    st.write("Optimizing for risk-adjusted returns with fixed risk parameter")
     
     if st.button("Run Optimization"):
         with st.spinner("Optimizing sub-asset class weights..."):
@@ -395,23 +395,13 @@ def show_constraints():
     # Save the edited constraints
     st.session_state.allocation_constraints = edited_constraints
     
-    # Add option to set risk aversion level
-    st.subheader("Risk Aversion Parameter")
-    
+    # Use fixed risk aversion parameter of 6.0 for all optimizations
     if "risk_aversion" not in st.session_state:
-        st.session_state.risk_aversion = 3.0
-    
-    risk_aversion = st.slider(
-        "Risk Aversion Parameter",
-        min_value=1.0,
-        max_value=10.0,
-        value=st.session_state.risk_aversion,
-        step=0.1,
-        help="Higher values lead to more conservative allocations"
-    )
-    
-    # Save the risk aversion parameter
-    st.session_state.risk_aversion = risk_aversion
+        st.session_state.risk_aversion = 6.0
+    else:
+        st.session_state.risk_aversion = 6.0  # Always set to 6.0
+        
+    st.info("Using fixed risk parameter of 6.0 for all optimizations")
     
     # Add mean reversion settings
     st.subheader("Mean Reversion Settings")
