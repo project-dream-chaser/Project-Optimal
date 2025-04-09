@@ -201,35 +201,41 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
             # Deviation from target return (both too high and too low are penalized)
             post_return_component = post_restylement_return_deviation * 20.0  # Weight to balance with other components
             
-            # Check if short-term equity returns are below long-term
-            # Get short-term and long-term return assumptions
-            from utils.market_assumptions import get_asset_returns_covariance
+            # Add penalty for asset classes where short-term returns differ significantly from long-term
+            # The penalty is proportional to:
+            # 1. How much the asset's allocation deviates from its "natural" allocation
+            # 2. How much the short-term returns differ from long-term returns
             
-            short_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'short_term')
-            long_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'long_term')
+            # Start with zero penalty
+            market_condition_penalty = 0.0
             
-            # Find equity index
-            equity_idx = asset_classes.index('Global Equity') if 'Global Equity' in asset_classes else 0
+            # Get first period allocation (we're penalizing early allocations that don't account for market conditions)
+            first_period_allocation = reshaped_weights[0]
             
-            # Calculate ratio of short to long-term returns
-            short_term_equity = short_term_returns[equity_idx]
-            long_term_equity = long_term_returns[equity_idx]
-            equity_return_ratio = short_term_equity / max(0.01, long_term_equity)
-            
-            # Add a penalty for high equity when short-term returns are significantly below long-term
-            if equity_return_ratio < 0.8:  # 20% below long-term avg
-                # Get equity allocation from first period (first elements of the glidepath)
-                first_period_allocation = reshaped_weights[0]
-                equity_allocation = first_period_allocation[equity_idx]
+            # Loop through all asset classes
+            for i, asset in enumerate(asset_classes):
+                # Get the asset's allocation in the first period
+                asset_allocation = first_period_allocation[i]
                 
-                # Penalty proportional to the allocation and the return gap
-                equity_adjustment_penalty = equity_allocation * (1.0 - equity_return_ratio) * 30.0
+                # Get the adjustment factor for this asset from our pre-computed values
+                adjustment_factor = return_adjustments.get(asset, 1.0)
                 
-                # Add this to the objective
-                return shortfall_component + lifestyle_component + post_return_component + equity_adjustment_penalty
-            else:
-                # Combined objective for near-restylement periods
-                return shortfall_component + lifestyle_component + post_return_component
+                # Calculate a penalty based on the difference from 1.0 (neutral)
+                # If adjustment_factor < 1.0, penalize high allocations
+                # If adjustment_factor > 1.0, penalize low allocations
+                if adjustment_factor < 0.8:  # Significantly worse short-term returns
+                    # Penalize high allocations to this asset class
+                    # Penalty increases as allocation increases and as adjustment factor decreases
+                    penalty = asset_allocation * (1.0 - adjustment_factor) * 25.0
+                    market_condition_penalty += penalty
+                elif adjustment_factor > 1.2:  # Significantly better short-term returns
+                    # Penalize low allocations to this asset class
+                    # Penalty increases as allocation decreases and as adjustment factor increases
+                    penalty = (1.0 - asset_allocation) * (adjustment_factor - 1.0) * 25.0
+                    market_condition_penalty += penalty
+            
+            # Add the market condition penalty to the objective
+            return shortfall_component + lifestyle_component + post_return_component + market_condition_penalty
         else:
             # More than 7 years from restylement:
             # 1. Prioritize pre-restylement return target
@@ -245,58 +251,67 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
             # Basic shortfall risk still included but with lower weight
             basic_shortfall = risk_metrics['shortfall_probability'] * below_target_risk_aversion * 0.5  # Half weight
             
-            # Check if short-term equity returns are below long-term
-            # Get short-term and long-term return assumptions
-            from utils.market_assumptions import get_asset_returns_covariance
+            # Add penalty for asset classes where short-term returns differ significantly from long-term
+            # The penalty is proportional to:
+            # 1. How much the asset's allocation deviates from its "natural" allocation
+            # 2. How much the short-term returns differ from long-term returns
             
-            short_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'short_term')
-            long_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'long_term')
+            # Start with zero penalty
+            market_condition_penalty = 0.0
             
-            # Find equity index
-            equity_idx = asset_classes.index('Global Equity') if 'Global Equity' in asset_classes else 0
+            # Get first period allocation (we're penalizing early allocations that don't account for market conditions)
+            first_period_allocation = reshaped_weights[0]
             
-            # Calculate ratio of short to long-term returns
-            short_term_equity = short_term_returns[equity_idx]
-            long_term_equity = long_term_returns[equity_idx]
-            equity_return_ratio = short_term_equity / max(0.01, long_term_equity)
-            
-            # Add a penalty for high equity when short-term returns are significantly below long-term
-            if equity_return_ratio < 0.8:  # 20% below long-term avg
-                # Get equity allocation from first period (first elements of the glidepath)
-                first_period_allocation = reshaped_weights[0]
-                equity_allocation = first_period_allocation[equity_idx]
+            # Loop through all asset classes
+            for i, asset in enumerate(asset_classes):
+                # Get the asset's allocation in the first period
+                asset_allocation = first_period_allocation[i]
                 
-                # Penalty proportional to the allocation and the return gap
-                equity_adjustment_penalty = equity_allocation * (1.0 - equity_return_ratio) * 40.0
+                # Get the adjustment factor for this asset from our pre-computed values
+                adjustment_factor = return_adjustments.get(asset, 1.0)
                 
-                # Add this to the objective
-                return pre_return_component + basic_shortfall + wealth_component + equity_adjustment_penalty
-            else:
-                # Combined objective for far-from-restylement periods
-                return pre_return_component + basic_shortfall + wealth_component
+                # Calculate a penalty based on the difference from 1.0 (neutral)
+                # If adjustment_factor < 1.0, penalize high allocations
+                # If adjustment_factor > 1.0, penalize low allocations
+                if adjustment_factor < 0.8:  # Significantly worse short-term returns
+                    # Penalize high allocations to this asset class
+                    # Penalty increases as allocation increases and as adjustment factor decreases
+                    penalty = asset_allocation * (1.0 - adjustment_factor) * 35.0
+                    market_condition_penalty += penalty
+                elif adjustment_factor > 1.2:  # Significantly better short-term returns
+                    # Penalize low allocations to this asset class
+                    # Penalty increases as allocation decreases and as adjustment factor increases
+                    penalty = (1.0 - asset_allocation) * (adjustment_factor - 1.0) * 35.0
+                    market_condition_penalty += penalty
+            
+            # Add the market condition penalty to the objective
+            return pre_return_component + basic_shortfall + wealth_component + market_condition_penalty
     
     # Generate smarter initial guess based on both age and short-term vs. long-term return expectations
-    # Extract short-term and long-term returns for asset classes
+    # Extract short-term and long-term returns for all asset classes
     from utils.market_assumptions import get_asset_returns_covariance
     
     short_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'short_term')
     long_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'long_term')
     
-    # Find index of Global Equity in asset_classes for return comparison
-    equity_idx = asset_classes.index('Global Equity') if 'Global Equity' in asset_classes else 0
+    # Create adjustment factors for each asset class based on short-term vs. long-term return differentials
+    return_adjustments = {}
     
-    # Compare short-term and long-term equity returns
-    short_term_equity_return = short_term_returns[equity_idx]
-    long_term_equity_return = long_term_returns[equity_idx]
-    
-    # Calculate adjustment factor based on return differential
-    # If short-term returns are lower than long-term, reduce initial equity allocation
-    return_adjustment = min(1.0, short_term_equity_return / max(0.01, long_term_equity_return))
-    
-    # Show info about the adjustment
-    print(f"Short-term equity return: {short_term_equity_return:.2%}")
-    print(f"Long-term equity return: {long_term_equity_return:.2%}")
-    print(f"Equity allocation adjustment factor: {return_adjustment:.2f}")
+    # Loop through all asset classes to compute return adjustments
+    for i, asset_class in enumerate(asset_classes):
+        short_term_return = short_term_returns[i]
+        long_term_return = long_term_returns[i]
+        
+        # Calculate adjustment factor (ratio of short-term to long-term return)
+        # Values < 1.0 mean short-term returns are lower than long-term
+        if long_term_return > 0:
+            adjustment = min(1.5, max(0.5, short_term_return / max(0.01, long_term_return)))
+        else:
+            # If long-term return is zero or negative, use a neutral adjustment
+            adjustment = 1.0
+            
+        return_adjustments[asset_class] = adjustment
+        print(f"{asset_class} - Short-term: {short_term_return:.2%}, Long-term: {long_term_return:.2%}, Adjustment: {adjustment:.2f}")
     
     # Determine client risk profile based on max_stock_pct
     is_aggressive = max_stock_pct > 70 if max_stock_pct is not None else False
@@ -312,26 +327,17 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
         else:
             base_stock_pct = max(0.10, min(0.80, (100 - period_age) / 100))
         
-        # Adjust for current market conditions (reduce equity when short-term returns are lower)
-        # For periods in the first 7 years, apply more adjustment
-        if i < 7:
-            # Linear blend from full adjustment at year 0 to no adjustment at year 7
-            adjustment_weight = 1.0 - (i / 7.0)
-            stock_pct = base_stock_pct * (1.0 - adjustment_weight * (1.0 - return_adjustment))
-        else:
-            # Beyond 7 years, use the base age-based allocation
-            stock_pct = base_stock_pct
+        # Start with standard asset class allocation model (simplified to stocks/bonds/alternatives)
+        stock_pct = base_stock_pct
         
+        # Get the equity adjustment factor (for consistency with older code)
+        equity_adjustment = return_adjustments.get('Global Equity', 1.0)
+                
         # Adjust if client has a specific max stock percentage
         if max_stock_pct is not None:
             stock_pct = min(stock_pct, max_stock_pct / 100.0)
-        
-        # Start with a typical allocation
-        # Stocks (Global Equity)
-        # Bonds (Core Bond + Short-Term Bond)
-        # Alternatives (Real Assets + Global Credit + Liquid Alternatives)
-        
-        # Simplified allocation: stocks/bonds/alternatives
+            
+        # Simplified allocation percentages
         if period_age < retirement_age:
             # Pre-retirement: more alternatives
             bonds_pct = (1 - stock_pct) * 0.6
@@ -344,18 +350,43 @@ def optimize_glidepath(client, plan, market_assumptions, num_simulations=500, ma
         # Distribute among specific asset classes
         period_allocation = np.zeros(num_assets)
         for j, asset in enumerate(asset_classes):
+            # Base allocation
             if asset == 'Global Equity':
-                period_allocation[j] = stock_pct
+                base_alloc = stock_pct
             elif asset == 'Core Bond':
-                period_allocation[j] = bonds_pct * 0.7
+                base_alloc = bonds_pct * 0.7
             elif asset == 'Short-Term Bond':
-                period_allocation[j] = bonds_pct * 0.3
+                base_alloc = bonds_pct * 0.3
             elif asset == 'Global Credit':
-                period_allocation[j] = alts_pct * 0.3
+                base_alloc = alts_pct * 0.3
             elif asset == 'Real Assets':
-                period_allocation[j] = alts_pct * 0.4
+                base_alloc = alts_pct * 0.4
             elif asset == 'Liquid Alternatives':
-                period_allocation[j] = alts_pct * 0.3
+                base_alloc = alts_pct * 0.3
+            else:
+                base_alloc = 0
+                
+            # Apply adjustment for market conditions in first 7 years
+            if i < 7:
+                # Linear blend from full adjustment at year 0 to no adjustment at year 7
+                adjustment_weight = 1.0 - (i / 7.0)
+                
+                # Get the adjustment factor for this asset class
+                asset_adjustment = return_adjustments.get(asset, 1.0)
+                
+                # Apply the adjustment:
+                # - If asset_adjustment < 1.0 (short-term returns worse than long-term), reduce allocation
+                # - If asset_adjustment > 1.0 (short-term returns better than long-term), increase allocation
+                # The adjustment factor is weighted by how far we are into the 7-year period
+                
+                # Scale adjustments to prevent extreme allocations
+                asset_adjustment_scaled = 1.0 + (asset_adjustment - 1.0) * 0.5  # reduce effect of big deviations
+                
+                # Apply scaled adjustment, weighted by position in 7-year period
+                period_allocation[j] = base_alloc * (1.0 + adjustment_weight * (asset_adjustment_scaled - 1.0))
+            else:
+                # Beyond 7 years, use the base allocation
+                period_allocation[j] = base_alloc
         
         # Append to initial guess
         initial_guess.extend(period_allocation)

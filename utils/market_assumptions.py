@@ -258,6 +258,99 @@ def get_asset_returns_covariance(market_assumptions, view='long_term'):
     
     return returns, volatilities, correlations
 
+def visualize_mean_reversion(market_assumptions, years=7):
+    """
+    Visualize mean reversion from short-term to long-term capital market assumptions
+    for all major asset classes.
+    
+    Parameters:
+    -----------
+    market_assumptions : dict
+        Dictionary containing market assumptions
+    years : int
+        Number of years for mean reversion
+        
+    Returns:
+    --------
+    fig : matplotlib Figure
+        Figure with the visualization
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # Get the return assumptions for all asset classes
+    short_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'short_term')
+    long_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'long_term')
+    
+    # Get asset class names
+    asset_classes = market_assumptions.get('asset_classes', [])
+    if not asset_classes:
+        # Default asset classes if not available
+        asset_classes = ['Global Equity', 'Core Bond', 'Short-Term Bond', 
+                         'Global Credit', 'Real Assets', 'Liquid Alternatives']
+    
+    # Create year range
+    years_array = np.arange(0, years + 1)
+    
+    # Create the figure - larger to accommodate multiple lines
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Colors for different asset classes
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+    
+    # Plot mean reversion for each asset class
+    for i, asset_name in enumerate(asset_classes):
+        if i >= len(short_term_returns) or i >= len(long_term_returns):
+            continue
+            
+        # Get short and long term return values
+        short_term = short_term_returns[i]
+        long_term = long_term_returns[i]
+        
+        # Create mean reversion path
+        reversion_path = []
+        for year in years_array:
+            weight_long = min(1.0, year / years) if years > 0 else 1.0
+            weight_short = 1.0 - weight_long
+            reversion_path.append(short_term * weight_short + long_term * weight_long)
+        
+        # Plot this asset class's mean reversion with a distinct color
+        color = colors[i % len(colors)]  # Cycle through colors
+        ax.plot(years_array, reversion_path, color=color, linewidth=2, label=asset_name)
+        
+        # Add horizontal lines for start and end points (slightly transparent)
+        ax.axhline(y=short_term, color=color, linestyle='--', alpha=0.2)
+        ax.axhline(y=long_term, color=color, linestyle='--', alpha=0.2)
+        
+        # Add annotations (only for major asset classes to avoid clutter)
+        if asset_name in ['Global Equity', 'Core Bond']:
+            ax.text(0, short_term, f'{asset_name}: {short_term:.1%}', 
+                    verticalalignment='bottom', color=color)
+            ax.text(years, long_term, f'{asset_name}: {long_term:.1%}', 
+                    verticalalignment='bottom', color=color)
+    
+    # Add labels and title
+    ax.set_xlabel('Years')
+    ax.set_ylabel('Expected Return')
+    ax.set_title('Mean Reversion of Expected Returns Across Asset Classes')
+    ax.grid(True, alpha=0.3)
+    
+    # Position legend outside the plot to avoid overcrowding
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+              fancybox=True, shadow=True, ncol=3)
+    
+    # Add text explaining the mean reversion process
+    explanation = (
+        "This chart shows how expected returns transition from short-term market views to "
+        "long-term equilibrium assumptions over 7 years. The glidepath optimization "
+        "considers these time-varying returns when determining optimal allocations."
+    )
+    fig.text(0.5, 0.01, explanation, wrap=True, horizontalalignment='center', 
+             fontsize=10, style='italic')
+    
+    plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Make room for the text
+    return fig
+
 def optimize_sub_asset_classes(market_assumptions, risk_aversion=None):
     """
     Optimize sub-asset class allocations within each major asset class.
