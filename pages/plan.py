@@ -341,6 +341,75 @@ def save_plan(plan):
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
 
+def show_time_varying_returns_chart(short_term_returns, long_term_returns, mean_reversion_years, asset_classes):
+    """
+    Display a chart showing how capital market assumptions transition from short-term to long-term.
+    
+    Parameters:
+    -----------
+    short_term_returns : array-like
+        Short-term return assumptions for each asset class
+    long_term_returns : array-like
+        Long-term return assumptions for each asset class
+    mean_reversion_years : int
+        Number of years over which returns revert from short-term to long-term
+    asset_classes : list
+        List of asset class names
+    """
+    # Create a DataFrame to display the mean-reverting returns for each year
+    years = list(range(mean_reversion_years + 1))
+    mean_reversion_data = []
+    
+    # Calculate mean-reverting returns for each year and asset class
+    for year in years:
+        if year == 0:
+            # Initial year uses short-term assumptions
+            weights = {"Year": year}
+            for i, asset in enumerate(asset_classes):
+                weights[asset] = short_term_returns[i] * 100  # Convert to percentage
+            mean_reversion_data.append(weights)
+        else:
+            # Calculate the weight of long-term returns (increases from 0 to 1)
+            long_term_weight = min(1.0, year / mean_reversion_years)
+            
+            weights = {"Year": year}
+            for i, asset in enumerate(asset_classes):
+                # Blend short-term and long-term returns
+                blended_return = (1 - long_term_weight) * short_term_returns[i] + long_term_weight * long_term_returns[i]
+                weights[asset] = blended_return * 100  # Convert to percentage
+            mean_reversion_data.append(weights)
+    
+    # Create a DataFrame
+    df = pd.DataFrame(mean_reversion_data)
+    
+    # Display the table
+    st.subheader("Mean-Reverting Capital Market Assumptions")
+    st.write("The table below shows how expected returns transition from short-term to long-term views over the first 7 years:")
+    st.dataframe(df.style.format({col: "{:.2f}%" for col in df.columns if col != "Year"}), use_container_width=True)
+    
+    # Create a line chart showing the transition for each asset class
+    st.subheader("Mean Reversion Visualization")
+    
+    # Create the chart using matplotlib
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    for i, asset in enumerate(asset_classes):
+        # Extract values for this asset class
+        values = [row[asset] for row in mean_reversion_data]
+        ax.plot(years, values, marker='o', label=asset)
+    
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Expected Return (%)')
+    ax.set_title('Mean Reversion from Short-Term to Long-Term Market Assumptions')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    
+    # Add text annotations explaining the process
+    txt = "Returns start with short-term views in year 0\nand gradually blend to long-term views by year 7.\nAfter year 7, long-term views are used exclusively."
+    ax.text(0.02, 0.02, txt, transform=ax.transAxes, bbox=dict(facecolor='white', alpha=0.7))
+    
+    st.pyplot(fig)
+    
 def show_risk_assessment(client):
     """
     Display and edit risk assessment for a client's plan.
@@ -2329,6 +2398,27 @@ def show_glidepath_optimization(client):
     # Display calculated number of periods
     with col3:
         st.info(f"Number of glidepath periods: {years_to_restylement} (automatically set to match years until restylement)")
+    
+    # Display the mean-reverting capital market assumptions
+    st.subheader("Mean-Reverting Capital Market Assumptions")
+    
+    # Get market assumptions
+    market_assumptions = st.session_state.market_assumptions
+    
+    # Get asset classes
+    asset_classes = market_assumptions['asset_classes']
+    
+    # Extract short-term and long-term returns
+    from utils.market_assumptions import get_asset_returns_covariance
+    
+    short_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'short_term')
+    long_term_returns, _, _ = get_asset_returns_covariance(market_assumptions, 'long_term')
+    
+    # Define mean reversion years (default: 7)
+    mean_reversion_years = 7
+    
+    # Call the function to display the chart
+    show_time_varying_returns_chart(short_term_returns, long_term_returns, mean_reversion_years, asset_classes)
     
     # Button to run the optimization
     if st.button("Optimize Glidepath"):
